@@ -1,52 +1,119 @@
 export default function Home() {
   return (
-    <main className="container">
+    <main>
+      {/* ── Hero ──────────────────────────────────────────────── */}
       <section className="hero">
-        <h1>The USB-C for AI</h1>
-        <p>
-          KitHub resolves poor reproducibility and fragmented expertise. 
-          Stop prompting. Start publishing reusable, agent-agnostic workflows.
-        </p>
-        
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem', marginBottom: '3rem' }}>
-          <a href="/registry" className="btn">Browse Kits</a>
-          <a href="/dashboard" className="btn btn-secondary">Publish a Kit</a>
-        </div>
-
-        <div className="glass-panel" style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'left' }}>
-          <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem', fontFamily: 'var(--font-mono)' }}>Agent-First Quick Start</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-            Instruct your agent (OpenClaw, Claude Code, Cursor) to run:
+        <div className="container">
+          <h1>The USB-C for AI</h1>
+          <p className="hero-subtitle">
+            Discover, install, and adapt versioned agent workflows.
+            Stop prompting. Start publishing.
           </p>
-          <div className="terminal-block">
-            Fetch the KitHub kit at <strong>kithub.com/tools/weekly-earnings</strong> and follow its specification.
+
+          <div className="hero-ctas">
+            <a href="/registry" className="btn">Browse Registry</a>
+            <a href="/publish" className="btn btn-secondary">Publish a Kit</a>
           </div>
-          
-          <h3 style={{ margin: '2rem 0 1rem 0', fontSize: '1.2rem', fontFamily: 'var(--font-mono)' }}>Human CLI Fallback</h3>
-          <div className="terminal-block">
-            npx @kithub/cli install tools/weekly-earnings --target=claude-code
+
+          {/* ── Agent-First Quick Start (PRIMARY) ────────────── */}
+          <div className="install-primary" style={{ maxWidth: '720px', margin: '0 auto' }}>
+            <div className="glass-panel">
+              <h3>⚡ Agent-First Quick Start</h3>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                Tell your agent (Cursor, Claude Code, OpenClaw) to run this one prompt:
+              </p>
+              <div className="terminal-block">
+                Fetch the KitHub kit at <strong>kithub.com/registry/weekly-earnings-preview</strong> and follow its specification.<span className="cursor"></span>
+              </div>
+              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '1rem', fontFamily: 'var(--font-mono)' }}>
+                Your agent handles discovery, preflight checks, and installation autonomously.
+              </p>
+            </div>
+          </div>
+
+          {/* ── Legacy CLI (APPENDIX — collapsed) ────────────── */}
+          <div className="install-legacy" style={{ maxWidth: '720px', margin: '0 auto' }}>
+            <details>
+              <summary>Manual CLI fallback (headless environments)</summary>
+              <div className="terminal-block">
+                npx @kithub/cli install weekly-earnings-preview --target=claude-code
+              </div>
+            </details>
           </div>
         </div>
       </section>
 
-      <section style={{ padding: '4rem 0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-        <div className="glass-panel">
-          <h3>Reproducible Workflows</h3>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '1rem' }}>
-            A kit encapsulates model requirements, specific tools, and the markdown instructions in a standard kit/1.0 format.
-          </p>
+      {/* ── How It Works ──────────────────────────────────────── */}
+      <section className="container">
+        <div className="section-header">
+          <h2>How It Works</h2>
+          <p>Three steps from discovery to autonomous execution.</p>
         </div>
-        <div className="glass-panel">
-          <h3>Communal Intelligence</h3>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '1rem' }}>
-            Agents proactively submit and download "learnings"—preventing redundant errors and burning expensive tokens on solved pitfalls.
-          </p>
+
+        <div className="steps-flow">
+          <div className="step-item">
+            <span className="step-number">1</span>
+            <h4>Discover</h4>
+            <p>Browse the registry or let your agent search by intent. Every kit is versioned and safety-scanned.</p>
+          </div>
+          <div className="step-item">
+            <span className="step-number">2</span>
+            <h4>Install</h4>
+            <p>One prompt. Your agent writes target-specific files (CLAUDE.md, AGENTS.md, .cursor/) automatically.</p>
+          </div>
+          <div className="step-item">
+            <span className="step-number">3</span>
+            <h4>Adapt</h4>
+            <p>When friction arises, agents inherit community &quot;learnings&quot;—pre-solved edge cases that save tokens and time.</p>
+          </div>
         </div>
-        <div className="glass-panel">
-          <h3>Safe by Design</h3>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '1rem' }}>
-            Every kit undergoes automated safety scanning and grading. Connect external credentials securely via resource bindings.
-          </p>
+      </section>
+
+      {/* ── Features ──────────────────────────────────────────── */}
+      <section className="container">
+        <div className="feature-grid">
+          <div className="glass-panel feature-card">
+            <span className="feature-icon">📦</span>
+            <h3>Immutable Kits</h3>
+            <p>
+              Versioned, harness-agnostic workflow packages. A kit encapsulates model, tools, skills, and troubleshooting data in the kit/1.0 standard.
+            </p>
+          </div>
+          <div className="glass-panel feature-card">
+            <span className="feature-icon">🧠</span>
+            <h3>Communal Intelligence</h3>
+            <p>
+              Agents proactively download &quot;learnings&quot;—community-submitted solutions that prevent redundant token-burning on solved problems.
+            </p>
+          </div>
+          <div className="glass-panel feature-card">
+            <span className="feature-icon">🛡️</span>
+            <h3>Safe by Design</h3>
+            <p>
+              Every kit undergoes automated safety scanning: secret detection, destructive pattern flagging, and diagnostic scoring from 1 to 10.
+            </p>
+          </div>
+          <div className="glass-panel feature-card">
+            <span className="feature-icon">🔌</span>
+            <h3>Universal Targets</h3>
+            <p>
+              Install payloads adapt to your harness: Claude Code, Cursor, Codex, MCP, or generic. One kit, every environment.
+            </p>
+          </div>
+          <div className="glass-panel feature-card">
+            <span className="feature-icon">🗝️</span>
+            <h3>Resource Bindings</h3>
+            <p>
+              Credentials are never stored in kits. Pointer-only references resolve at runtime via 1Password, env vars, or vault.
+            </p>
+          </div>
+          <div className="glass-panel feature-card">
+            <span className="feature-icon">📊</span>
+            <h3>Agent Analytics</h3>
+            <p>
+              Track installs, security scores, and learnings per kit. See which workflows drive real value across the community.
+            </p>
+          </div>
         </div>
       </section>
     </main>

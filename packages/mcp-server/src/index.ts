@@ -1,81 +1,140 @@
-#!/usr/bin/env node
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 import { KitHubClient } from "@kithub/sdk";
 
 const client = new KitHubClient();
+const server = new McpServer({
+  name: "kithub",
+  version: "0.2.0",
+});
 
-const server = new Server(
-  {
-    name: "kithub-mcp",
-    version: "0.1.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
+// ── search_kits ───────────────────────────────────────────────────
+
+server.tool(
+  "search_kits",
+  "Search the KitHub registry for agent workflow kits. Returns matching kits with metadata, scores, and install counts.",
+  { query: z.string().optional().describe("Search term to find kits by title, tag, or intent") },
+  async ({ query }) => {
+    try {
+      const { kits } = await client.searchKits(query);
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify(kits, null, 2),
+        }],
+      };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    }
   }
 );
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "search_kits",
-        description: "Search the KitHub registry for AI agent setups and workflows",
-        inputSchema: {
-          type: "object",
-          properties: {
-            query: { type: "string" },
-          },
-        },
-      },
-      {
-        name: "install_kit",
-        description: "Get the kit package and autonomous instructions for a target model",
-        inputSchema: {
-          type: "object",
-          properties: {
-            slug: { type: "string" },
-            target: { type: "string", description: "claude-code, codex, mcp, generic" },
-          },
-          required: ["slug", "target"]
-        },
-      }
-    ],
-  };
-});
+// ── get_kit_detail ────────────────────────────────────────────────
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  try {
-    if (request.params.name === "search_kits") {
+server.tool(
+  "get_kit_detail",
+  "Get full details of a specific kit including its raw markdown, parsed frontmatter, security scan results, and learnings count.",
+  { slug: z.string().describe("The kit slug (URL-safe identifier)") },
+  async ({ slug }) => {
+    try {
+      const kit = await client.getKit(slug);
       return {
-        content: [{ type: "text", text: "Found Kit: weekly-earnings-preview" }],
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify(kit, null, 2),
+        }],
       };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
     }
+  }
+);
 
-    if (request.params.name === "install_kit") {
-      const { slug, target } = request.params.arguments as any;
+// ── install_kit ───────────────────────────────────────────────────
+
+server.tool(
+  "install_kit",
+  "Get target-specific install instructions for a kit. Returns pre-flight checks, harness steps, and instructions for the specified agent environment.",
+  {
+    slug: z.string().describe("The kit slug to install"),
+    target: z.enum(["generic", "codex", "claude-code", "cursor", "mcp"])
+      .describe("Target harness: generic, codex, claude-code, cursor, or mcp"),
+  },
+  async ({ slug, target }) => {
+    try {
       const payload = await client.getInstallPayload(slug, target);
       return {
-        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify(payload, null, 2),
+        }],
       };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
     }
+  }
+);
 
-    throw new Error(`Tool not found: ${request.params.name}`);
-  } catch (err: any) {
+// ── submit_learning ───────────────────────────────────────────────
+
+server.tool(
+  "submit_learning",
+  "Submit a 'learning' to a kit — community-sourced solutions to edge cases like rate limits, runtime conflicts, or platform quirks.",
+  {
+    slug: z.string().describe("The kit slug to submit a learning for"),
+    payload: z.string().describe("Description of the learning (what went wrong and how to fix it)"),
+    os: z.string().optional().describe("Operating system context (e.g., macOS, Linux, Windows)"),
+    model: z.string().optional().describe("Model used (e.g., gpt-4o, claude-sonnet-4-20250514)"),
+    runtime: z.string().optional().describe("Runtime version (e.g., Node 20, Python 3.12)"),
+    platform: z.string().optional().describe("Agent platform (e.g., Cursor, Claude Code, Codex)"),
+  },
+  async ({ slug, payload, os, model, runtime, platform }) => {
+    try {
+      const result = await client.submitLearning(slug, {
+        context: { os, model, runtime, platform },
+        payload,
+      });
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify(result, null, 2),
+        }],
+      };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    }
+  }
+);
+
+// ── list_install_targets ──────────────────────────────────────────
+
+server.tool(
+  "list_install_targets",
+  "List all supported install targets with descriptions.",
+  {},
+  async () => {
+    const targets = [
+      { target: "generic", description: "Standard install with bundle metadata, normalized kit.md, and preflight checks" },
+      { target: "codex", description: "OpenAI Codex — generates AGENTS.md-targeted steps, stores under .kithub/" },
+      { target: "claude-code", description: "Anthropic Claude Code — generates CLAUDE.md-targeted steps, stores under .kithub/" },
+      { target: "cursor", description: "Cursor IDE — auto-loads rules/skills into .cursor/ directory" },
+      { target: "mcp", description: "Model Context Protocol — returns MCP-oriented instruction payload" },
+    ];
     return {
-      content: [{ type: "text", text: `Error: ${err.message}` }],
-      isError: true,
+      content: [{
+        type: "text" as const,
+        text: JSON.stringify(targets, null, 2),
+      }],
     };
   }
-});
+);
+
+// ── Start Server ──────────────────────────────────────────────────
 
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("KitHub MCP Server running on stdio");
 }
 
 main().catch(console.error);

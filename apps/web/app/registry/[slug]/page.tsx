@@ -1,61 +1,168 @@
-export default function KitDetail({ params }: { params: { slug: string } }) {
-  // In a real app, fetch /api/kits/:slug
+import Link from "next/link";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+async function getKit(slug: string) {
+  try {
+    const res = await fetch(`${API_URL}/api/kits/${slug}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Not found");
+    return res.json();
+  } catch {
+    return {
+      slug,
+      title: "Weekly Earnings Preview",
+      summary: "Automated job for earnings report tracking",
+      version: "1.2.0",
+      installs: 1204,
+      learningsCount: 2,
+      tags: ["finance", "scheduling"],
+      scan: { score: 9, status: "passed", findings: [{ type: "tip", message: "Consider adding a fileManifest" }] },
+      conformanceLevel: "standard",
+      rawMarkdown: `---\nschema: "kit/1.0"\nslug: "${slug}"\ntitle: "Weekly Earnings Preview"\nversion: "1.2.0"\nmodel:\n  provider: openai\n  name: gpt-4o-2024-11-20\n  hosting: hosted\n---\n\n## Goal\nExtract earnings sentiment from public financial news.\n\n## When to Use\nEvery Monday before market open.\n\n## Setup\nEnsure OPENAI_API_KEY is set.\n\n## Steps\n1. Read ticker watchlist\n2. Fetch headlines via Firecrawl\n3. Summarize with GPT-4o\n4. Generate Excel report\n5. Email report\n\n## Constraints\nMax 50 tickers per run.\n\n## Safety Notes\nNever store API keys in kit files.`,
+    };
+  }
+}
+
+export default async function KitDetail({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await paramsPromise;
+  const kit = await getKit(slug);
+
+  const scoreBadgeClass = (kit.scan?.score ?? 0) >= 9 ? "high" : (kit.scan?.score ?? 0) >= 7 ? "medium" : "low";
+
+  // Extract body sections from rawMarkdown for display
+  const bodyContent = kit.rawMarkdown?.split(/^---[\s\S]*?---/m)[1] || kit.rawMarkdown || "";
+
   return (
-    <main className="container" style={{ paddingTop: '4rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3rem' }}>
-        <div>
-          <h1 style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>Weekly Earnings Preview</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.2rem', marginBottom: '1rem' }}>
-            Automated job for earnings report tracking ({params.slug})
-          </p>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>v1.2.0</span>
-            <span style={{ color: 'var(--text-secondary)' }}>Published 2 days ago</span>
-          </div>
-        </div>
-        <button className="btn">View Source</button>
+    <main className="container" style={{ paddingTop: '3rem', paddingBottom: '4rem' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '2.5rem' }}>
+        <Link href="/registry" style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+          ← Back to Registry
+        </Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '3rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
+          <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', marginBottom: '0.5rem' }}>{kit.title}</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '1rem' }}>
+            {kit.summary}
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: '0.9rem' }}>v{kit.version}</span>
+            <span className={`score-badge ${scoreBadgeClass}`}>◆ {kit.scan?.score}/10</span>
+            <span style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+              {kit.conformanceLevel} conformance
+            </span>
+            {kit.tags?.map((tag: string) => (
+              <span key={tag} className="tag-chip">#{tag}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Two-column layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '2.5rem' }}>
+        {/* Main content */}
+        <div>
+          {/* Kit.md Viewer */}
           <div className="glass-panel" style={{ marginBottom: '2rem' }}>
-            <h2 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Readme (kit.md)</h2>
-            <div style={{ fontFamily: 'var(--font-sans)', color: '#ccc' }}>
-              <p style={{ marginBottom: '1rem' }}><strong>Goal:</strong> Extract earnings sentiment from public news for a given list of tickers.</p>
-              <p style={{ marginBottom: '1rem' }}><strong>When to Use:</strong> 1 hour before market open, daily.</p>
-              <h4 style={{ marginTop: '2rem', marginBottom: '1rem', color: '#fff' }}>Steps:</h4>
-              <ol style={{ paddingLeft: '1.5rem', marginBottom: '1rem' }}>
-                <li>Fetch top headlines for tickers via Firecrawl.</li>
-                <li>Summarize sentiment using OpenAI.</li>
-                <li>Format output effectively.</li>
-              </ol>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
+              Kit Specification
+            </h2>
+            <div style={{ fontFamily: 'var(--font-sans)', color: '#ccc', fontSize: '0.95rem', lineHeight: '1.75' }}>
+              <pre style={{
+                whiteSpace: 'pre-wrap',
+                wordWrap: 'break-word',
+                fontFamily: 'var(--font-sans)',
+                margin: 0,
+              }}>
+                {bodyContent.trim()}
+              </pre>
             </div>
+          </div>
+
+          {/* Learnings */}
+          <div className="glass-panel">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1rem' }}>Community Learnings</h3>
+              <span className="stat-counter">{kit.learningsCount ?? 0} available</span>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              Learnings are community-submitted solutions to edge cases — rate limits, runtime conflicts, and platform-specific quirks.
+            </p>
+            <a href={`/registry/${params.slug}#submit-learning`} className="btn btn-secondary btn-sm">
+              Submit a Learning
+            </a>
           </div>
         </div>
 
+        {/* Sidebar */}
         <div>
-          <div className="glass-panel" style={{ position: 'sticky', top: '100px' }}>
-            <h3 style={{ marginBottom: '1rem' }}>Agent Installation</h3>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              Paste this to Cursor, Claude Code, or OpenClaw:
-            </p>
-            <div className="terminal-block" style={{ fontSize: '0.8rem', marginBottom: '2rem' }}>
-              @agent setup kit: kithub.com/{params.slug}
+          <div className="sidebar-sticky" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Agent Install (PRIMARY) */}
+            <div className="install-primary">
+              <div className="glass-panel">
+                <h3>⚡ Agent Installation</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                  Paste this to Cursor, Claude Code, or OpenClaw:
+                </p>
+                <div className="terminal-block" style={{ fontSize: '0.8rem' }}>
+                  Fetch the KitHub kit at <strong>kithub.com/registry/{params.slug}</strong> and follow it.<span className="cursor"></span>
+                </div>
+
+                {/* Legacy CLI (COLLAPSED) */}
+                <div className="install-legacy" style={{ marginTop: '1rem' }}>
+                  <details>
+                    <summary>CLI fallback</summary>
+                    <div className="terminal-block" style={{ fontSize: '0.75rem' }}>
+                      npx @kithub/cli install {params.slug} --target=claude-code
+                    </div>
+                  </details>
+                </div>
+              </div>
             </div>
 
-            <h3 style={{ marginBottom: '1rem' }}>Manual CLI</h3>
-            <div className="terminal-block" style={{ fontSize: '0.8rem', padding: '1rem' }}>
-              npx @kithub/cli install {params.slug}
+            {/* Stats */}
+            <div className="glass-panel">
+              <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Stats & Safety</h3>
+              <ul style={{ listStyle: 'none', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <li style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Installs</span>
+                  <strong>{Number(kit.installs).toLocaleString()}</strong>
+                </li>
+                <li style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Security Score</span>
+                  <span className={`score-badge ${scoreBadgeClass}`}>◆ {kit.scan?.score}/10</span>
+                </li>
+                <li style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Learnings</span>
+                  <strong>{kit.learningsCount ?? 0}</strong>
+                </li>
+                <li style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Conformance</span>
+                  <span className="tag-chip">{kit.conformanceLevel}</span>
+                </li>
+              </ul>
             </div>
 
-            <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '2rem 0' }} />
-
-            <h3 style={{ marginBottom: '1rem' }}>Stats & Safety</h3>
-            <ul style={{ listStyle: 'none', fontSize: '0.9rem', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <li style={{ display: 'flex', justifyContent: 'space-between' }}><span>Installs</span> <strong style={{ color: '#fff' }}>1,204</strong></li>
-              <li style={{ display: 'flex', justifyContent: 'space-between' }}><span>Security Score</span> <strong style={{ color: 'var(--accent)' }}>9.8/10</strong></li>
-              <li style={{ display: 'flex', justifyContent: 'space-between' }}><span>Learnings</span> <strong style={{ color: '#fff' }}>7 available</strong></li>
-            </ul>
+            {/* Scan Findings */}
+            {kit.scan?.findings?.length > 0 && (
+              <div className="glass-panel">
+                <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Scanner Notes</h3>
+                {kit.scan.findings.map((f: any, i: number) => (
+                  <div key={i} style={{
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: 'var(--radius-xs)',
+                    background: f.type === 'error' ? 'rgba(255,77,106,0.08)' : f.type === 'warning' ? 'rgba(255,179,64,0.08)' : 'rgba(0,232,143,0.08)',
+                    marginBottom: '0.5rem',
+                    fontSize: '0.8rem',
+                    color: f.type === 'error' ? 'var(--danger)' : f.type === 'warning' ? 'var(--warning)' : 'var(--accent)',
+                  }}>
+                    {f.type === 'error' ? '✕' : f.type === 'warning' ? '⚠' : '💡'} {f.message}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
