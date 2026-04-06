@@ -1,4 +1,4 @@
-# KitHub 
+# KitHub The Agent-First Lifecycle
 
 ## represents a foundational shift in AI infrastructure 
 it aims to be the “USB-C for AI”—a universal interface for reusable, autonomous AI agent workflows. Where AI development today is mired in brittle, manual prompt engineering and custom “glue code,” KitHub offers an agent-focused registry resolving poor reproducibility, duplicated effort, and fragmented expertise.
