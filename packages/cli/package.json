@@ -1,0 +1,21 @@
+{
+  "name": "@kithub/cli",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "kithub": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "@kithub/sdk": "*"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "*",
+    "typescript": "^5.3.3"
+  }
+}

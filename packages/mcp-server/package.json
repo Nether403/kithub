@@ -1,0 +1,21 @@
+{
+  "name": "@kithub/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "kithub-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "@kithub/sdk": "*"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "*",
+    "typescript": "^5.3.3"
+  }
+}
