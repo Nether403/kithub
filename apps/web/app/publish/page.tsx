@@ -1,9 +1,13 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export default function PublishPage() {
+  const searchParams = useSearchParams();
+  const editSlug = searchParams.get("edit");
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [raw, setRaw] = useState("");
   const [result, setResult] = useState<any>(null);
@@ -11,9 +15,27 @@ export default function PublishPage() {
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const stepLabels = ["Paste", "Validate", "Publish"];
+  useEffect(() => {
+    if (!editSlug) return;
+    setEditLoading(true);
+    fetch(`${API_URL}/api/kits/${editSlug}`)
+      .then(res => {
+        if (!res.ok) throw new Error("Kit not found");
+        return res.json();
+      })
+      .then(data => {
+        if (data.rawMarkdown) {
+          setRaw(data.rawMarkdown);
+        }
+        setEditLoading(false);
+      })
+      .catch(() => {
+        setEditLoading(false);
+      });
+  }, [editSlug]);
 
   const handleFileRead = useCallback((file: File) => {
     const reader = new FileReader();
@@ -106,11 +128,17 @@ export default function PublishPage() {
   const scoreClass = (score: number) =>
     score >= 9 ? "score-circle-high" : score >= 7 ? "score-circle-medium" : "score-circle-low";
 
+  const isEditMode = !!editSlug;
+
   return (
     <main className="container page-section page-narrow">
       <div className="page-header">
-        <h1>Publish a Kit</h1>
-        <p className="page-subtitle">Three steps: paste, validate, scan & publish.</p>
+        <h1>{isEditMode ? `Update Kit: ${editSlug}` : "Publish a Kit"}</h1>
+        <p className="page-subtitle">
+          {isEditMode
+            ? "Edit the markdown below and publish a new release."
+            : "Three steps: paste, validate, scan & publish."}
+        </p>
       </div>
 
       <div className="step-indicator" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={3} aria-label="Publish progress">
@@ -118,7 +146,7 @@ export default function PublishPage() {
           <div key={s} className="step-indicator-item">
             <div className={`step-bar ${step >= s ? "step-bar-active" : "step-bar-inactive"}`} />
             <span className={`step-indicator-label ${step >= s ? "step-indicator-label-active" : ""}`}>
-              {stepLabels[s - 1]}
+              {["Paste", "Validate", "Publish"][s - 1]}
             </span>
           </div>
         ))}
@@ -127,46 +155,60 @@ export default function PublishPage() {
       {step === 1 && (
         <div className="step-panel">
           <div className="glass-panel">
-            <h2 className="step-heading">1. Paste Your Kit.md</h2>
+            <h2 className="step-heading">
+              {isEditMode ? "1. Edit Your Kit.md" : "1. Paste Your Kit.md"}
+            </h2>
             <p className="step-description">
-              Paste the complete contents of your kit.md file below, or drag and drop a file. Must include YAML frontmatter and all 6 required body sections.
+              {isEditMode
+                ? "The current kit markdown is loaded below. Make your changes, then bump the version number before publishing."
+                : "Paste the complete contents of your kit.md file below, or drag and drop a file. Must include YAML frontmatter and all 6 required body sections."}
             </p>
 
-            <div
-              className={`drop-zone ${dragOver ? "drop-zone-active" : ""} ${raw ? "drop-zone-has-content" : ""}`}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => !raw && fileInputRef.current?.click()}
-            >
-              {!raw ? (
-                <div className="drop-zone-placeholder">
-                  <span className="drop-zone-icon" aria-hidden="true">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  </span>
-                  <span>Drag & drop your kit.md file here, or click to browse</span>
-                  <span className="drop-zone-hint">or paste your content in the editor below</span>
-                </div>
-              ) : null}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".md,.markdown,.txt"
-                className="drop-zone-input"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileRead(file);
-                }}
-              />
-            </div>
+            {editLoading ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                Loading kit content...
+              </div>
+            ) : (
+              <>
+                {!isEditMode && (
+                  <div
+                    className={`drop-zone ${dragOver ? "drop-zone-active" : ""} ${raw ? "drop-zone-has-content" : ""}`}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onClick={() => !raw && fileInputRef.current?.click()}
+                  >
+                    {!raw ? (
+                      <div className="drop-zone-placeholder">
+                        <span className="drop-zone-icon" aria-hidden="true">
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </span>
+                        <span>Drag & drop your kit.md file here, or click to browse</span>
+                        <span className="drop-zone-hint">or paste your content in the editor below</span>
+                      </div>
+                    ) : null}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".md,.markdown,.txt"
+                      className="drop-zone-input"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileRead(file);
+                      }}
+                    />
+                  </div>
+                )}
 
-            <textarea
-              className="input input-mono"
-              placeholder={'---\nschema: "kit/1.0"\nslug: my-awesome-kit\ntitle: My Awesome Kit\nsummary: ...\nversion: 1.0.0\nmodel:\n  provider: openai\n  name: gpt-4o-2024-11-20\n  hosting: hosted\ntags: [automation]\ntools: [firecrawl]\nskills: [web-scraping]\n---\n\n## Goal\n...\n\n## When to Use\n...\n\n## Setup\n...\n\n## Steps\n...\n\n## Constraints\n...\n\n## Safety Notes\n...'}
-              value={raw}
-              onChange={(e) => setRaw(e.target.value)}
-              aria-label="Kit markdown content"
-            />
+                <textarea
+                  className="input input-mono"
+                  placeholder={'---\nschema: "kit/1.0"\nslug: my-awesome-kit\ntitle: My Awesome Kit\nsummary: ...\nversion: 1.0.0\nmodel:\n  provider: openai\n  name: gpt-4o-2024-11-20\n  hosting: hosted\ntags: [automation]\ntools: [firecrawl]\nskills: [web-scraping]\n---\n\n## Goal\n...\n\n## When to Use\n...\n\n## Setup\n...\n\n## Steps\n...\n\n## Constraints\n...\n\n## Safety Notes\n...'}
+                  value={raw}
+                  onChange={(e) => setRaw(e.target.value)}
+                  aria-label="Kit markdown content"
+                />
+              </>
+            )}
 
             {error && <div className="alert alert-error mt-1">{error}</div>}
 
@@ -209,7 +251,7 @@ export default function PublishPage() {
 
             {preview.missingSections.length > 0 && (
               <div className="alert alert-warning">
-                ⚠ Missing sections: {preview.missingSections.join(", ")}
+                Missing sections: {preview.missingSections.join(", ")}
               </div>
             )}
 
@@ -230,7 +272,7 @@ export default function PublishPage() {
                   <span className="btn-spinner" aria-hidden="true" />
                   Scanning & Publishing...
                 </>
-              ) : "Scan & Publish →"}
+              ) : isEditMode ? "Scan & Update →" : "Scan & Publish →"}
             </button>
           </div>
         </div>
@@ -243,7 +285,9 @@ export default function PublishPage() {
               {result.status === "published" ? "✅" : "🚫"}
             </div>
             <h2 className="result-title">
-              {result.status === "published" ? "Kit Published!" : "Publication Blocked"}
+              {result.status === "published"
+                ? (isEditMode ? "Kit Updated!" : "Kit Published!")
+                : "Publication Blocked"}
             </h2>
             <p className="result-description">
               {result.status === "published"

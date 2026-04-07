@@ -37,6 +37,7 @@ export const kits = pgTable("kits", {
     purpose: string;
     deliveryMethod: string;
   }>>(),
+  unpublishedAt: timestamp("unpublished_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

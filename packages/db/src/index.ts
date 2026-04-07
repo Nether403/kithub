@@ -98,13 +98,13 @@ export async function getLatestScan(releaseId: string) {
 export async function searchKits(query?: string, tag?: string) {
   if (!db) throw new Error("Database not connected");
 
-  let q = db.select().from(schema.kits).$dynamic();
+  const conditions = [sql`${schema.kits.unpublishedAt} IS NULL`];
 
   if (query) {
-    q = q.where(
-      ilike(schema.kits.title, `%${query}%`)
-    );
+    conditions.push(ilike(schema.kits.title, `%${query}%`));
   }
+
+  let q = db.select().from(schema.kits).where(and(...conditions)).$dynamic();
 
   return q.orderBy(desc(schema.kits.updatedAt)).limit(50);
 }
@@ -158,6 +158,31 @@ export async function recordNotification(
   await db.insert(schema.notificationLogs).values({ publisherId, kitSlug, type });
 }
 
+export async function getAllReleases(kitSlug: string) {
+  if (!db) throw new Error("Database not connected");
+  const releases = await db
+    .select()
+    .from(schema.kitReleases)
+    .where(eq(schema.kitReleases.kitSlug, kitSlug))
+    .orderBy(desc(schema.kitReleases.createdAt));
+
+  const enriched = await Promise.all(
+    releases.map(async (rel) => {
+      const scan = await getLatestScan(rel.id);
+      return {
+        id: rel.id,
+        version: rel.version,
+        conformanceLevel: rel.conformanceLevel,
+        rawMarkdown: rel.rawMarkdown,
+        createdAt: rel.createdAt,
+        scan: scan ? { score: scan.score, status: scan.status, findings: scan.findings } : null,
+      };
+    })
+  );
+
+  return enriched;
+}
+
 export async function healthCheck(): Promise<boolean> {
   if (!db) return false;
   try {
@@ -168,5 +193,4 @@ export async function healthCheck(): Promise<boolean> {
   }
 }
 
-// Re-export schema and operators
 export { schema, eq, desc, ilike, sql, and };

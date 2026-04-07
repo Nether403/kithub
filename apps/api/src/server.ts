@@ -14,7 +14,11 @@ const fastify = createFastify({ logger: true });
 async function start() {
   // ── Plugins ───────────────────────────────────────────────────
   await fastify.register(cors, {
-    origin: process.env.WEB_URL || "http://localhost:3000",
+    origin: [
+      process.env.WEB_URL || "http://localhost:3000",
+      "http://localhost:5000",
+      `https://${process.env.REPLIT_DEV_DOMAIN || ""}`,
+    ].filter(Boolean),
     credentials: true,
   });
 

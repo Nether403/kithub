@@ -27,7 +27,7 @@ export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
 
     const isPublic = publicPaths.some(p => {
       if (request.url === p) return true;
-      if (request.method === "GET" && request.url.startsWith("/api/kits")) return true;
+      if (request.method === "GET" && request.url.startsWith("/api/kits") && !request.url.startsWith("/api/kits/mine")) return true;
       return false;
     });
 

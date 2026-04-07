@@ -53,7 +53,8 @@ Global CSS classes in `globals.css` organized by section:
 - **Layout**: `.container`, `.page-section`, `.page-narrow`, `.page-header`, `.page-header-row`
 - **Cards**: `.glass-panel`, `.kit-card`, `.stat-card`, `.stat-grid`
 - **Forms**: `.input`, `.input-code`, `.input-mono`, `.form-group`, `.form-hint`
-- **Buttons**: `.btn`, `.btn-secondary`, `.btn-sm`, `.btn-full`, `.btn-link`, `.btn-back`
+- **Buttons**: `.btn`, `.btn-secondary`, `.btn-sm`, `.btn-full`, `.btn-link`, `.btn-back`, `.btn-danger`
+- **Modal**: `.modal-overlay`, `.modal-content`, `.modal-actions`
 - **Steps**: `.step-indicator`, `.step-bar`, `.step-panel`, `.step-heading`, `.step-description`
 - **Alerts**: `.alert`, `.alert-error`, `.alert-warning`, `.alert-success`, `.alert-info`
 - **Results**: `.result-centered`, `.result-icon`, `.result-title`, `.result-description`
@@ -75,9 +76,10 @@ Global CSS classes in `globals.css` organized by section:
 ### Pages
 - `/` — Homepage (hero, quick start, how it works, features)
 - `/auth` — Auth (centered card, register/login toggle, verification)
-- `/publish` — Publish kit (3-step wizard with progress bar)
-- `/dashboard` — User dashboard (stats grid, kit list with skeletons)
-- `/registry` — Registry (user-managed, do not modify)
+- `/publish` — Publish kit (3-step wizard with progress bar). Supports `?edit=<slug>` for editing existing kits.
+- `/dashboard` — User dashboard (stats grid, owned kit list with Edit/Unpublish actions). Uses `GET /api/kits/mine` for publisher-owned kits.
+- `/registry` — Registry listing
+- `/registry/[slug]` — Kit detail with Version History panel (client-side `VersionHistory` component)
 - 404 — `apps/web/app/not-found.tsx` (styled 404 with gradient text)
 
 ### Footer
@@ -97,6 +99,16 @@ Migration files are managed via Drizzle Kit and stored in `packages/db/drizzle/`
 - **Apply migrations** to the database: `cd packages/db && npx drizzle-kit migrate` (requires `DATABASE_URL`)
 - **Push schema** directly (dev only): `cd packages/db && npm run push`
 - Migration config: `packages/db/drizzle.config.ts`
+
+## API Endpoints
+- `GET /api/kits` — Public registry listing (excludes unpublished kits)
+- `GET /api/kits/mine` — Publisher's own kits (auth required)
+- `GET /api/kits/:slug` — Kit detail (404 for unpublished)
+- `GET /api/kits/:slug/versions` — Version history with scan results
+- `GET /api/kits/:slug/install` — Install payload
+- `POST /api/kits` — Publish/update a kit (auth required)
+- `DELETE /api/kits/:slug` — Unpublish a kit (auth required, owner only)
+- `POST /api/kits/:slug/learnings` — Submit a learning
 
 ## API Rate Limiting
 The API uses `@fastify/rate-limit` with per-route configuration (global rate limiting is disabled).

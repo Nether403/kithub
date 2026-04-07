@@ -1,4 +1,5 @@
 import Link from "next/link";
+import VersionHistory from "./VersionHistory";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -64,6 +65,7 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
             </div>
           </div>
 
+          <VersionHistory slug={slug} />
           <div className="glass-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1rem' }}>Community Learnings</h3>

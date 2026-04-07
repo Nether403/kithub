@@ -1829,3 +1829,41 @@ label {
   .footer-grid { grid-template-columns: 1fr; }
   .stat-grid { grid-template-columns: 1fr; }
 }
+
+.btn-danger {
+  background: rgba(255, 77, 106, 0.1);
+  color: var(--danger, #ff4d6a);
+  border: 1px solid rgba(255, 77, 106, 0.3);
+}
+.btn-danger:hover {
+  background: rgba(255, 77, 106, 0.2);
+  border-color: rgba(255, 77, 106, 0.5);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  max-width: 480px;
+  width: 100%;
+  padding: 2rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}

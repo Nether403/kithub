@@ -3,7 +3,7 @@ import {
   db, schema, eq, desc, ilike, sql,
   getKitBySlug, getLatestRelease, getKitTags,
   getInstallCount, getLearningsCount, getLatestScan,
-  searchKits,
+  searchKits, getAllReleases,
 } from "@kithub/db";
 import { parseKitMd } from "@kithub/schema";
 import { scanKit } from "@kithub/schema/src/scanner";
@@ -48,6 +48,46 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     return { kits: enriched, total: enriched.length };
   });
 
+  fastify.get("/mine", { preHandler: [requirePublisher] }, async (request, reply) => {
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
+
+    const jwtUser = request.user as JwtUser;
+    const myKits = await db.select().from(schema.kits)
+      .where(
+        eq(schema.kits.publisherId, jwtUser.publisherId!)
+      )
+      .orderBy(desc(schema.kits.updatedAt));
+
+    const publishedKits = myKits.filter(k => !k.unpublishedAt);
+
+    const enriched = await Promise.all(
+      publishedKits.map(async (kit) => {
+        const release = await getLatestRelease(kit.slug);
+        const tags = await getKitTags(kit.slug);
+        const installs = await getInstallCount(kit.slug);
+        const scan = release ? await getLatestScan(release.id) : null;
+
+        return {
+          slug: kit.slug,
+          title: kit.title,
+          summary: kit.summary,
+          version: release?.version ?? "0.0.0",
+          installs,
+          tags: tags.map(t => t.tag),
+          score: scan?.score ?? null,
+          updatedAt: kit.updatedAt,
+        };
+      })
+    );
+
+    return { kits: enriched, total: enriched.length };
+  });
   fastify.get("/:slug", async (request, reply) => {
     const { slug } = request.params as { slug: string };
     if (!db) {
@@ -63,6 +103,13 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(404).send({
         error: "Not Found",
         message: `Kit "${slug}" not found.`,
+        statusCode: 404,
+      });
+    }
+    if (kit.unpublishedAt) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: `Kit "${slug}" has been unpublished.`,
         statusCode: 404,
       });
     }
@@ -270,6 +317,78 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     };
   });
 
+  fastify.delete("/:slug", { preHandler: [requirePublisher] }, async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
+
+    const kit = await getKitBySlug(slug);
+    if (!kit) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: `Kit "${slug}" not found.`,
+        statusCode: 404,
+      });
+    }
+
+    const jwtUser = request.user as JwtUser;
+    if (kit.publisherId !== jwtUser.publisherId) {
+      return reply.code(403).send({
+        error: "Forbidden",
+        message: "You don't own this kit.",
+        statusCode: 403,
+      });
+    }
+
+    if (kit.unpublishedAt) {
+      return reply.code(400).send({
+        error: "Validation Error",
+        message: "Kit is already unpublished.",
+        statusCode: 400,
+      });
+    }
+
+    await db.update(schema.kits)
+      .set({ unpublishedAt: new Date() })
+      .where(eq(schema.kits.slug, slug));
+
+    return { status: "unpublished", slug };
+  });
+
+  fastify.get("/:slug/versions", async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
+
+    const kit = await getKitBySlug(slug);
+    if (!kit) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: `Kit "${slug}" not found.`,
+        statusCode: 404,
+      });
+    }
+    if (kit.unpublishedAt) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: `Kit "${slug}" has been unpublished.`,
+        statusCode: 404,
+      });
+    }
+
+    const versions = await getAllReleases(slug);
+    return { slug, versions };
+  });
   fastify.post("/:slug/learnings", async (request, reply) => {
     const { slug } = request.params as { slug: string };
     const { context, payload } = request.body as {
