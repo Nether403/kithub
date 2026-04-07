@@ -29,6 +29,7 @@ export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
       if (request.url === p) return true;
       if (request.method === "GET" && request.url.startsWith("/api/kits") && !request.url.startsWith("/api/kits/mine")) return true;
       if (request.method === "GET" && request.url.startsWith("/api/publishers")) return true;
+      if (request.method === "GET" && request.url.startsWith("/api/skills")) return true;
       return false;
     });
 

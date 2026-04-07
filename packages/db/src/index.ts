@@ -418,6 +418,77 @@ export async function getInstallsByTarget(kitSlug: string) {
   return rows.map(r => ({ target: r.target, count: Number(r.count) }));
 }
 
+// ── Skills Query Helpers ──────────────────────────────────────────
+
+export async function searchSkills(query?: string, tag?: string) {
+  if (!db) throw new Error("Database not connected");
+
+  const allSkills = await db.select().from(schema.skills);
+
+  let results = allSkills;
+
+  if (query) {
+    const q = query.toLowerCase();
+    results = results.filter(
+      s => s.title.toLowerCase().includes(q) || s.summary.toLowerCase().includes(q)
+    );
+  }
+
+  if (tag) {
+    const tagRows = await db.select().from(schema.skillTags);
+    const slugsWithTag = new Set(
+      tagRows.filter(t => t.tag.toLowerCase() === tag.toLowerCase()).map(t => t.skillSlug)
+    );
+    results = results.filter(s => slugsWithTag.has(s.slug));
+  }
+
+  const tagRows = await db.select().from(schema.skillTags);
+  const tagMap: Record<string, string[]> = {};
+  for (const t of tagRows) {
+    if (!tagMap[t.skillSlug]) tagMap[t.skillSlug] = [];
+    tagMap[t.skillSlug]!.push(t.tag);
+  }
+
+  const publisherMap = await getPublisherNameMap();
+
+  return results
+    .sort((a, b) => b.installCount - a.installCount)
+    .map(s => ({
+      slug: s.slug,
+      title: s.title,
+      emoji: s.emoji,
+      category: s.category,
+      summary: s.summary,
+      installCount: s.installCount,
+      tags: tagMap[s.slug] ?? [],
+      publisherName: publisherMap[s.publisherId] ?? null,
+      updatedAt: s.updatedAt,
+    }));
+}
+
+export async function getSkillBySlug(slug: string) {
+  if (!db) throw new Error("Database not connected");
+  const [skill] = await db.select().from(schema.skills).where(eq(schema.skills.slug, slug)).limit(1);
+  if (!skill) return null;
+
+  const tags = await db.select().from(schema.skillTags).where(eq(schema.skillTags.skillSlug, slug));
+  const publisherMap = await getPublisherNameMap();
+
+  return {
+    slug: skill.slug,
+    title: skill.title,
+    emoji: skill.emoji,
+    category: skill.category,
+    summary: skill.summary,
+    description: skill.description,
+    installCount: skill.installCount,
+    tags: tags.map(t => t.tag),
+    publisherName: publisherMap[skill.publisherId] ?? null,
+    createdAt: skill.createdAt,
+    updatedAt: skill.updatedAt,
+  };
+}
+
 export async function healthCheck(): Promise<boolean> {
   if (!db) return false;
   try {

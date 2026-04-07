@@ -99,6 +99,27 @@ export const learnings = pgTable("learnings", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// ── Skills ───────────────────────────────────────────────────────
+
+export const skills = pgTable("skills", {
+  slug: varchar("slug").primaryKey(),
+  publisherId: varchar("publisher_id").notNull().references(() => publisherProfiles.id),
+  title: varchar("title").notNull(),
+  emoji: varchar("emoji", { length: 10 }).notNull().default("🔧"),
+  category: varchar("category").notNull().default("general"),
+  summary: text("summary").notNull(),
+  description: text("description").notNull(),
+  installCount: integer("install_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const skillTags = pgTable("skill_tags", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  skillSlug: varchar("skill_slug").notNull().references(() => skills.slug),
+  tag: varchar("tag").notNull(),
+});
+
 // ── Notification Logs ────────────────────────────────────────────
 
 export const notificationLogs = pgTable("notification_logs", {
