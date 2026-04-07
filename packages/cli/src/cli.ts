@@ -39,11 +39,11 @@ function warn(text: string) { return `\x1b[33m${text}\x1b[0m`; }
 program
   .name("kithub")
   .version("0.2.0")
-  .description("KitHub CLI — Discover, install, and publish agent workflows");
+  .description("SkillKitHub CLI — Discover, install, and publish agent workflows and skills");
 
 program
   .command("search")
-  .description("Search the KitHub registry")
+  .description("Search the SkillKitHub registry")
   .argument("[query]", "Search term")
   .option("--tag <tag>", "Filter by tag")
   .option("--json", "Output raw JSON")
@@ -62,7 +62,7 @@ program
         return;
       }
 
-      console.log(`\n  ${bold("KitHub Registry")} ${dim(`(${kits.length} results)`)}\n`);
+      console.log(`\n  ${bold("SkillKitHub Registry")} ${dim(`(${kits.length} results)`)}\n`);
 
       for (const kit of kits) {
         const scoreColor = (kit.score ?? 0) >= 9 ? accent : (kit.score ?? 0) >= 7 ? warn : danger;
@@ -243,12 +243,12 @@ program
 
 program
   .command("login")
-  .description("Authenticate with KitHub (passwordless email)")
+  .description("Authenticate with SkillKitHub (passwordless email)")
   .argument("<email>", "Your registered email")
   .action(async (email) => {
     try {
       const client = createClient();
-      console.log(`\n  ${accent("◆")} ${bold("KitHub Login")}\n`);
+      console.log(`\n  ${accent("◆")} ${bold("SkillKitHub Login")}\n`);
 
       const result = await client.login(email);
       console.log(`  ${accent("✓")} ${result.message}`);
@@ -296,7 +296,7 @@ program
       process.exit(1);
     }
 
-    console.log(`\n  ${accent("◆")} ${bold("KitHub Identity")}\n`);
+    console.log(`\n  ${accent("◆")} ${bold("SkillKitHub Identity")}\n`);
     if (config.email) console.log(`  Email: ${config.email}`);
     if (config.agentName) console.log(`  Agent: ${bold(config.agentName)}`);
     console.log(`  Token: ${dim(token.slice(0, 20) + "...")}`);
@@ -347,7 +347,7 @@ function writeInstallFiles(payload: InstallPayloadWithRaw, target: string): stri
     if (step.action === "append") {
       const filePath = step.detail.split(" ")[0];
       if (filePath) {
-        const header = `\n## Agent Kit: ${slug}\nSource: kithub.com/registry/${slug}\n`;
+        const header = `\n## Agent Kit: ${slug}\nSource: skillkithub.com/registry/${slug}\n`;
         appendFileSync(filePath, header, "utf-8");
         written.push(filePath);
       }

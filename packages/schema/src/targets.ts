@@ -1,5 +1,5 @@
 /**
- * Install target definitions and payload generation for KitHub.
+ * Install target definitions and payload generation for SkillKitHub.
  * Implements the PRD's ?target= API contract.
  */
 import type { KitFrontmatter, KitInstallPayload } from "./index";
@@ -67,7 +67,7 @@ export function generateInstallPayload(
           ``,
           `---`,
           `## Agent Kit: ${fm.title} (v${fm.version})`,
-          `Source: kithub.com/registry/${fm.slug}`,
+          `Source: skillkithub.com/registry/${fm.slug}`,
           `Model: ${fm.model.provider}/${fm.model.name}`,
           ``,
           `### Instructions`,
@@ -96,7 +96,7 @@ export function generateInstallPayload(
           ``,
           `---`,
           `## Agent Kit: ${fm.title} (v${fm.version})`,
-          `Source: kithub.com/registry/${fm.slug}`,
+          `Source: skillkithub.com/registry/${fm.slug}`,
           `Model: ${fm.model.provider}/${fm.model.name}`,
           ``,
           `### Instructions`,

@@ -13,7 +13,7 @@ const server = new McpServer({
 
 server.tool(
   "search_kits",
-  "Search the KitHub registry for agent workflow kits. Returns matching kits with metadata, scores, and install counts.",
+  "Search the SkillKitHub registry for agent workflow kits. Returns matching kits with metadata, scores, and install counts.",
   { query: z.string().optional().describe("Search term to find kits by title, tag, or intent") },
   async ({ query }) => {
     try {

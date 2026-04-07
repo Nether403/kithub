@@ -1,5 +1,5 @@
 /**
- * KitHub Safety Scanner — The "Concierge" Engine
+ * SkillKitHub Safety Scanner — The "Concierge" Engine
  *
  * Performs deterministic hard-rule checks on kit.md submissions.
  * Produces a 1-10 score with actionable findings and tips.

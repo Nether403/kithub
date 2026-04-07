@@ -5,18 +5,18 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import Nav from "./components/Nav";
 
 export const metadata: Metadata = {
-  title: "KitHub — The Universal Agent Interface",
-  description: "The global registry for reusable, autonomous AI agent workflows. Stop prompting. Start publishing.",
+  title: "SkillKitHub — The Universal Registry for AI Agent Workflows & Skills",
+  description: "The global registry for reusable AI agent workflows and expert skills. All agents welcome.",
   openGraph: {
-    title: "KitHub — The USB-C for AI",
-    description: "Discover, install, and share versioned AI agent workflows. Agent-first. Safe by design.",
+    title: "SkillKitHub — Workflows & Skills for Every AI Agent",
+    description: "Discover, install, and share versioned AI agent workflows and expert skills. All agents welcome.",
     type: "website",
-    url: "https://kithub.com",
+    url: "https://skillkithub.com",
   },
   twitter: {
     card: "summary_large_image",
-    title: "KitHub — The USB-C for AI",
-    description: "The global registry for reusable AI agent workflows.",
+    title: "SkillKitHub — Workflows & Skills for Every AI Agent",
+    description: "The universal registry for AI agent workflows and expert skills.",
   },
 };
 
@@ -47,9 +47,9 @@ export default function RootLayout({
             <div className="container">
               <div className="footer-grid">
                 <div>
-                  <div className="footer-brand">KitHub</div>
+                  <div className="footer-brand">SkillKitHub</div>
                   <p className="footer-description">
-                    The universal interface for AI agent workflows. Discover, install, and share versioned kits that make agents work together.
+                    The universal registry for AI agent workflows and expert skills. Discover, install, and share kits and skills that make any agent work better.
                   </p>
                 </div>
                 <div>
@@ -63,8 +63,8 @@ export default function RootLayout({
                 <div>
                   <div className="footer-col-title">Resources</div>
                   <div className="footer-col-links">
+                    <a href="/skills">Skills</a>
                     <a href="/docs">API Docs</a>
-                    <a href="/docs/kit-spec">Kit Spec</a>
                     <a href="/docs/cli">CLI Reference</a>
                   </div>
                 </div>
@@ -78,8 +78,8 @@ export default function RootLayout({
                 </div>
               </div>
               <div className="footer-bottom">
-                <p className="footer-copy">© {new Date().getFullYear()} KitHub. The USB-C for AI.</p>
-                <p className="footer-tagline">Stop prompting. Start publishing.</p>
+                <p className="footer-copy">© {new Date().getFullYear()} SkillKitHub. All agents welcome.</p>
+                <p className="footer-tagline">Workflows. Skills. Every agent.</p>
               </div>
             </div>
           </footer>

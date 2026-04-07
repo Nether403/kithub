@@ -17,11 +17,11 @@ export async function generateMetadata({ params: paramsPromise }: { params: Prom
   const { slug } = await paramsPromise;
   try {
     const kit = await getKit(slug);
-    const title = `${kit.title} — KitHub`;
-    const description = kit.summary || `Install the ${kit.title} agent workflow kit from KitHub.`;
-    const url = `https://kithub.com/registry/${slug}`;
+    const title = `${kit.title} — SkillKitHub`;
+    const description = kit.summary || `Install the ${kit.title} agent workflow kit from SkillKitHub.`;
+    const url = `https://skillkithub.com/registry/${slug}`;
 
-    const ogImage = `${process.env.NEXT_PUBLIC_BASE_URL || "https://kithub.com"}/og-default.svg`;
+    const ogImage = `${process.env.NEXT_PUBLIC_BASE_URL || "https://skillkithub.com"}/og-default.svg`;
 
     return {
       title,
@@ -31,13 +31,13 @@ export async function generateMetadata({ params: paramsPromise }: { params: Prom
         description,
         type: "article",
         url,
-        siteName: "KitHub",
+        siteName: "SkillKitHub",
         images: [
           {
             url: ogImage,
             width: 1200,
             height: 630,
-            alt: `${kit.title} — KitHub`,
+            alt: `${kit.title} — SkillKitHub`,
           },
         ],
       },
@@ -50,8 +50,8 @@ export async function generateMetadata({ params: paramsPromise }: { params: Prom
     };
   } catch {
     return {
-      title: "Kit Not Found — KitHub",
-      description: "This kit could not be found on the KitHub registry.",
+      title: "Kit Not Found — SkillKitHub",
+      description: "This kit could not be found on the SkillKitHub registry.",
     };
   }
 }
@@ -140,7 +140,7 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
                   Paste this to Cursor, Claude Code, or OpenClaw:
                 </p>
                 <div className="terminal-block" style={{ fontSize: '0.8rem' }}>
-                  Fetch the KitHub kit at <strong>kithub.com/registry/{slug}</strong> and follow it.<span className="cursor"></span>
+                  Fetch the SkillKitHub kit at <strong>skillkithub.com/registry/{slug}</strong> and follow it.<span className="cursor"></span>
                 </div>
 
                 <div className="install-legacy" style={{ marginTop: '1rem' }}>

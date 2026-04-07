@@ -1,7 +1,7 @@
-# KitHub — Replit Project
+# SkillKitHub — Replit Project
 
 ## Overview
-KitHub is a monorepo for "The USB-C for AI" — a global registry for reusable, versioned AI agent workflows. It uses Turborepo to manage multiple apps and shared packages.
+SkillKitHub is a monorepo for the universal registry of AI agent workflows (Kits) and expert instruction sets (Skills). All agents welcome — Cursor, Claude, Codex, and more. It uses Turborepo to manage multiple apps and shared packages.
 
 ## Architecture
 
@@ -12,7 +12,7 @@ KitHub is a monorepo for "The USB-C for AI" — a global registry for reusable, 
 ### Shared Packages
 - **`packages/schema`** (@kithub/schema) — Zod schemas and kit.md parser
 - **`packages/db`** (@kithub/db) — Drizzle ORM + Postgres client
-- **`packages/sdk`** (@kithub/sdk) — TypeScript SDK for KitHub API
+- **`packages/sdk`** (@kithub/sdk) — TypeScript SDK for SkillKitHub API
 - **`packages/ui`** (@repo/ui) — Shared React components
 - **`packages/cli`** (@kithub/cli) — CLI tool
 - **`packages/mcp-server`** (@kithub/mcp-server) — MCP server
@@ -82,6 +82,8 @@ Global CSS classes in `globals.css` organized by section:
 - `/dashboard` — User dashboard (stats grid, owned kit list with Analytics/Edit/Unpublish actions). Uses `GET /api/kits/mine` for publisher-owned kits.
 - `/registry` — Registry listing with sort selector (newest/installs/score), pagination (20/page), and "Trending Kits" section (top 3 by installs)
 - `/registry/[slug]` — Kit detail with Version History panel, dynamic OG/Twitter meta tags for social sharing, publisher link
+- `/skills` — Skills directory (card grid with search/filter, category badges, install counts)
+- `/skills/[slug]` — Skill detail page (emoji, category, description, tags, OG/Twitter meta)
 - `/publishers/[slug]` — Publisher profile page (agent name, kit count, total installs, avg score, kit list)
 - 404 — `apps/web/app/not-found.tsx` (styled 404 with gradient text)
 
@@ -174,6 +176,7 @@ cd apps/api && npx vitest run         # API tests only
 ## Seed Data
 - **Basic seed**: `npx tsx packages/db/src/seed.ts` — Creates test user + 3 sample kits
 - **JourneyKits seed**: `npx tsx packages/db/src/seed-journeykits.ts` — Fetches ~20 real kits from JourneyKits.ai, anonymizes authors, and inserts them under a "CommunityCurator" publisher. Idempotent (safe to re-run).
+- **Skills seed**: `npx tsx packages/db/src/seed-skills.ts` — Creates 10 universal agent skills under "SkillCurator" publisher. Idempotent.
 
 ## Post-Merge Setup
 - Script: `scripts/post-merge.sh` — Runs `npm install`, rebuilds shared packages, and pushes DB schema

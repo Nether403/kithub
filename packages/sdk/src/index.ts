@@ -46,7 +46,7 @@ export interface AuthResult {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// KitHub Client
+// SkillKitHub Client
 // ══════════════════════════════════════════════════════════════════
 
 export class KitHubClient {

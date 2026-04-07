@@ -1,5 +1,5 @@
 /**
- * JourneyKits seed script for KitHub development database.
+ * JourneyKits seed script for SkillKitHub development database.
  *
  * Fetches public kits from the JourneyKits API, adapts them to kit/1.0 format,
  * anonymizes all owner/author references, and inserts them into the database.
@@ -325,7 +325,7 @@ const TARGETS = ["generic", "claude-code", "cursor", "codex"] as const;
 // ── Main seeder ───────────────────────────────────────────────────────────────
 
 async function seedJourneyKits() {
-  console.log("🌱 Seeding KitHub database with anonymized JourneyKits...\n");
+  console.log("🌱 Seeding SkillKitHub database with anonymized JourneyKits...\n");
 
   // 1. Create a shared "Community Curator" publisher profile
   const curatorUserId = "jk-curator-user-00000000";
@@ -333,7 +333,7 @@ async function seedJourneyKits() {
 
   await db.insert(schema.users).values({
     id: curatorUserId,
-    email: "curator@kithub.community",
+    email: "curator@skillkithub.community",
     emailVerified: new Date(),
   }).onConflictDoNothing();
 

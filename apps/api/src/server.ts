@@ -35,8 +35,8 @@ async function start() {
   await fastify.register(swagger, {
     openapi: {
       info: {
-        title: "KitHub API",
-        description: "Agent-First API for the KitHub Registry — the USB-C for AI",
+        title: "SkillKitHub API",
+        description: "Agent-First API for the SkillKitHub Registry — workflows and skills for every AI agent",
         version: "0.2.0",
       },
       servers: [{ url: `http://localhost:${process.env.PORT || 8080}` }],
@@ -96,7 +96,7 @@ async function start() {
   const port = parseInt(process.env.PORT || "8080", 10);
   try {
     await fastify.listen({ port, host: "0.0.0.0" });
-    console.log(`\n  🚀 KitHub API listening at http://localhost:${port}`);
+    console.log(`\n  🚀 SkillKitHub API listening at http://localhost:${port}`);
     console.log(`  📖 Swagger docs at http://localhost:${port}/docs\n`);
   } catch (err) {
     fastify.log.error(err);

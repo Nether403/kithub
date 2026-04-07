@@ -47,7 +47,8 @@ export default function Nav() {
   };
 
   const navLinks = [
-    { href: "/registry", label: "Registry" },
+    { href: "/registry", label: "Kits" },
+    { href: "/skills", label: "Skills" },
     { href: "/publish", label: "Publish" },
     { href: "/dashboard", label: "Dashboard" },
   ];
@@ -55,7 +56,7 @@ export default function Nav() {
   return (
     <nav className="nav" aria-label="Main navigation">
       <div className="nav-inner">
-        <Link href="/" className="nav-brand">KitHub</Link>
+        <Link href="/" className="nav-brand">SkillKitHub</Link>
 
         <button
           className="nav-mobile-toggle"

@@ -3,24 +3,24 @@ export default function Home() {
     <main>
       <section className="hero">
         <div className="container">
-          <h1>The USB-C for AI</h1>
+          <h1>Workflows & Skills for Every AI Agent</h1>
           <p className="hero-subtitle">
-            A global registry of reusable, versioned workflows that any AI agent can discover, install, and run — no custom integration required.
+            The universal registry for reusable agent workflows (Kits) and expert instruction sets (Skills). Works with Cursor, Claude, Codex, and any compatible agent.
           </p>
 
           <div className="hero-ctas">
-            <a href="/registry" className="btn">Browse Registry</a>
-            <a href="/publish" className="btn btn-secondary btn-secondary-visible">Publish a Kit</a>
+            <a href="/registry" className="btn">Browse Kits</a>
+            <a href="/skills" className="btn btn-secondary btn-secondary-visible">Explore Skills</a>
           </div>
 
           <div className="install-primary page-narrow">
             <div className="glass-panel">
-              <h3>⚡ Agent-First Quick Start</h3>
+              <h3>Agent-First Quick Start</h3>
               <p className="step-description">
-                Tell your agent (Cursor, Claude Code, OpenClaw) to run this one prompt:
+                Tell your agent (Cursor, Claude Code, Codex) to run this one prompt:
               </p>
               <div className="terminal-block">
-                Fetch the KitHub kit at <strong>kithub.com/registry/weekly-earnings-preview</strong> and follow its specification.<span className="cursor"></span>
+                Fetch the SkillKitHub kit at <strong>skillkithub.com/registry/weekly-earnings-preview</strong> and follow its specification.<span className="cursor"></span>
               </div>
               <p className="mono-sm form-hint mt-1">Your agent handles discovery, preflight checks, and installation autonomously.</p>
             </div>
@@ -47,7 +47,7 @@ export default function Home() {
           <div className="step-item">
             <span className="step-number">1</span>
             <h4>Discover</h4>
-            <p>Browse the registry or let your agent search by intent. Every kit is versioned and safety-scanned.</p>
+            <p>Browse kits and skills or let your agent search by intent. Everything is versioned and safety-scanned.</p>
           </div>
           <div className="step-item">
             <span className="step-number">2</span>
@@ -57,7 +57,7 @@ export default function Home() {
           <div className="step-item">
             <span className="step-number">3</span>
             <h4>Adapt</h4>
-            <p>When friction arises, agents inherit community &quot;learnings&quot;—pre-solved edge cases that save tokens and time.</p>
+            <p>When friction arises, agents inherit community &quot;learnings&quot;&mdash;pre-solved edge cases that save tokens and time.</p>
           </div>
         </div>
       </section>
@@ -73,13 +73,22 @@ export default function Home() {
               Versioned, harness-agnostic workflow packages. A kit encapsulates model, tools, skills, and troubleshooting data in the kit/1.0 standard.
             </p>
           </div>
+          <div className="glass-panel feature-card feature-card-purple">
+            <div className="feature-icon-styled feature-icon-purple" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <h3>Expert Skills</h3>
+            <p>
+              Curated instruction sets that teach any AI agent specialized capabilities &mdash; from SQL optimization to UI design. Universal and agent-agnostic.
+            </p>
+          </div>
           <div className="glass-panel feature-card feature-card-blue">
             <div className="feature-icon-styled feature-icon-blue" aria-hidden="true">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a9 9 0 0 1 9 9c0 3.9-2.5 7.2-6 8.5M12 2a9 9 0 0 0-9 9c0 3.9 2.5 7.2 6 8.5M12 2v20"/><path d="M2 12h20"/></svg>
             </div>
-            <h3>Communal Intelligence</h3>
+            <h3>All Agents Welcome</h3>
             <p>
-              Agents proactively download &quot;learnings&quot;—community-submitted solutions that prevent redundant token-burning on solved problems.
+              Works with Cursor, Claude Code, Codex, and any compatible agent. One registry, every environment.
             </p>
           </div>
           <div className="glass-panel feature-card feature-card-amber">
@@ -89,15 +98,6 @@ export default function Home() {
             <h3>Safe by Design</h3>
             <p>
               Every kit undergoes automated safety scanning: secret detection, destructive pattern flagging, and diagnostic scoring from 1 to 10.
-            </p>
-          </div>
-          <div className="glass-panel feature-card feature-card-purple">
-            <div className="feature-icon-styled feature-icon-purple" aria-hidden="true">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-            </div>
-            <h3>Universal Targets</h3>
-            <p>
-              Install payloads adapt to your harness: Claude Code, Cursor, Codex, MCP, or generic. One kit, every environment.
             </p>
           </div>
           <div className="glass-panel feature-card feature-card-rose">

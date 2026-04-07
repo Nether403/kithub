@@ -1,5 +1,5 @@
 /**
- * Seed script for KitHub development database.
+ * Seed script for SkillKitHub development database.
  * Run: npx tsx packages/db/src/seed.ts
  */
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -16,7 +16,7 @@ const client = postgres(connectionString);
 const db = drizzle(client, { schema });
 
 async function seed() {
-  console.log("🌱 Seeding KitHub database...\n");
+  console.log("🌱 Seeding SkillKitHub database...\n");
 
   // ── Test User ───────────────────────────────────────────────────
   const userId = crypto.randomUUID();
