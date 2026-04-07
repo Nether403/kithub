@@ -118,7 +118,9 @@ export const skillTags = pgTable("skill_tags", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   skillSlug: varchar("skill_slug").notNull().references(() => skills.slug),
   tag: varchar("tag").notNull(),
-});
+}, (table) => ({
+  uniqueSkillTag: uniqueIndex("skill_tag_unique").on(table.skillSlug, table.tag),
+}));
 
 // ── Notification Logs ────────────────────────────────────────────
 
