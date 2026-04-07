@@ -1,4 +1,29 @@
 import type { FastifyPluginAsync } from "fastify";
+import { z } from "zod";
+
+// ── Request Validation Schemas ──────────────────────────────────
+
+const PublishBodySchema = z.object({
+  rawMarkdown: z.string().min(50, "rawMarkdown is required and must be at least 50 characters"),
+});
+
+const LearningBodySchema = z.object({
+  context: z.object({
+    os: z.string().optional(),
+    model: z.string().optional(),
+    runtime: z.string().optional(),
+    platform: z.string().optional(),
+  }).optional().default({}),
+  payload: z.string().min(10, "payload is required (at least 10 characters)"),
+});
+
+const SearchQuerySchema = z.object({
+  q: z.string().max(200).optional(),
+  tag: z.string().max(50).optional(),
+  sort: z.enum(["installs", "score", "newest"]).optional().default("newest"),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+});
 import {
   db, schema, eq, desc, ilike, sql,
   getKitBySlug, getLatestRelease, getKitTags,
@@ -16,13 +41,15 @@ import { notifyOnInstall, notifyOnLearning } from "../services/notifications";
 export const kitRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get("/", async (request, reply) => {
-    const { q, tag, sort, page, limit } = request.query as {
-      q?: string;
-      tag?: string;
-      sort?: string;
-      page?: string;
-      limit?: string;
-    };
+    const parsed = SearchQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: "Validation Error",
+        message: parsed.error.issues.map(i => i.message).join("; "),
+        statusCode: 400,
+      });
+    }
+    const { q, tag, sort, page, limit } = parsed.data;
     if (!db) {
       return reply.code(503).send({
         error: "Service Unavailable",
@@ -31,11 +58,9 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    type SortValue = "installs" | "score" | "newest";
-    const validSorts: readonly SortValue[] = ["installs", "score", "newest"];
-    const sortBy: SortValue = validSorts.includes(sort as SortValue) ? (sort as SortValue) : "newest";
-    const pageNum = Math.max(1, parseInt(page || "1", 10) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit || "20", 10) || 20));
+    const sortBy = sort;
+    const pageNum = page;
+    const limitNum = limit;
 
     const result = await searchKitsPaginated({
       query: q,
@@ -242,15 +267,15 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
   }, async (request, reply) => {
-    const { rawMarkdown } = request.body as { rawMarkdown: string };
-
-    if (!rawMarkdown) {
+    const parsed = PublishBodySchema.safeParse(request.body);
+    if (!parsed.success) {
       return reply.code(400).send({
         error: "Validation Error",
-        message: "rawMarkdown is required. Paste your kit.md content.",
+        message: parsed.error.issues.map(i => i.message).join("; "),
         statusCode: 400,
       });
     }
+    const { rawMarkdown } = parsed.data;
     if (!db) {
       return reply.code(503).send({
         error: "Service Unavailable",
@@ -259,9 +284,9 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    let parsed;
+    let kitData;
     try {
-      parsed = parseKitMd(rawMarkdown);
+      kitData = parseKitMd(rawMarkdown);
     } catch (err: any) {
       return reply.code(422).send({
         error: "Validation Error",
@@ -271,10 +296,10 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const scanResult = scanKit(rawMarkdown, parsed.frontmatter);
+    const scanResult = scanKit(rawMarkdown, kitData.frontmatter);
 
     const jwtUser = request.user as JwtUser;
-    const existingKit = await getKitBySlug(parsed.frontmatter.slug);
+    const existingKit = await getKitBySlug(kitData.frontmatter.slug);
     if (existingKit) {
       if (existingKit.publisherId !== jwtUser.publisherId) {
         return reply.code(403).send({
@@ -284,25 +309,25 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
         });
       }
       await db.update(schema.kits)
-        .set({ title: parsed.frontmatter.title, summary: parsed.frontmatter.summary, updatedAt: new Date() })
-        .where(eq(schema.kits.slug, parsed.frontmatter.slug));
+        .set({ title: kitData.frontmatter.title, summary: kitData.frontmatter.summary, updatedAt: new Date() })
+        .where(eq(schema.kits.slug, kitData.frontmatter.slug));
     } else {
       await db.insert(schema.kits).values({
-        slug: parsed.frontmatter.slug,
+        slug: kitData.frontmatter.slug,
         publisherId: jwtUser.publisherId!,
-        title: parsed.frontmatter.title,
-        summary: parsed.frontmatter.summary,
+        title: kitData.frontmatter.title,
+        summary: kitData.frontmatter.summary,
       });
     }
 
     const releaseId = crypto.randomUUID();
     await db.insert(schema.kitReleases).values({
       id: releaseId,
-      kitSlug: parsed.frontmatter.slug,
-      version: parsed.frontmatter.version,
+      kitSlug: kitData.frontmatter.slug,
+      version: kitData.frontmatter.version,
       rawMarkdown,
-      parsedFrontmatter: parsed.frontmatter as any,
-      conformanceLevel: parsed.conformanceLevel,
+      parsedFrontmatter: kitData.frontmatter as any,
+      conformanceLevel: kitData.conformanceLevel,
     });
 
     await db.insert(schema.kitReleaseScans).values({
@@ -312,18 +337,18 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       status: scanResult.passed ? "passed" : "failed",
     });
 
-    await db.delete(schema.kitTags).where(eq(schema.kitTags.kitSlug, parsed.frontmatter.slug));
-    if (parsed.frontmatter.tags.length > 0) {
+    await db.delete(schema.kitTags).where(eq(schema.kitTags.kitSlug, kitData.frontmatter.slug));
+    if (kitData.frontmatter.tags.length > 0) {
       await db.insert(schema.kitTags).values(
-        parsed.frontmatter.tags.map(tag => ({ kitSlug: parsed.frontmatter.slug, tag }))
+        kitData.frontmatter.tags.map((tag: string) => ({ kitSlug: kitData.frontmatter.slug, tag }))
       );
     }
 
     return {
       status: scanResult.passed ? "published" : "blocked",
-      slug: parsed.frontmatter.slug,
-      version: parsed.frontmatter.version,
-      conformanceLevel: parsed.conformanceLevel,
+      slug: kitData.frontmatter.slug,
+      version: kitData.frontmatter.version,
+      conformanceLevel: kitData.conformanceLevel,
       scan: {
         score: scanResult.score,
         passed: scanResult.passed,
@@ -407,18 +432,15 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
   });
   fastify.post("/:slug/learnings", async (request, reply) => {
     const { slug } = request.params as { slug: string };
-    const { context, payload } = request.body as {
-      context: { os?: string; model?: string; runtime?: string; platform?: string };
-      payload: string;
-    };
-
-    if (!payload) {
+    const parsed = LearningBodySchema.safeParse(request.body);
+    if (!parsed.success) {
       return reply.code(400).send({
         error: "Validation Error",
-        message: "payload is required (description of the learning).",
+        message: parsed.error.issues.map(i => i.message).join("; "),
         statusCode: 400,
       });
     }
+    const { context, payload } = parsed.data;
     if (!db) {
       return reply.code(503).send({
         error: "Service Unavailable",

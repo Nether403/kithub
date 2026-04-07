@@ -1,173 +1,126 @@
-# SkillKitHub — The Agent-First Lifecycle
+# SkillKitHub
 
-## represents a foundational shift in AI infrastructure 
-it aims to be the “USB-C for AI”—a universal interface for reusable, autonomous AI agent workflows. Where AI development today is mired in brittle, manual prompt engineering and custom “glue code,” SkillKitHub offers an agent-focused registry resolving poor reproducibility, duplicated effort, and fragmented expertise.
+**The universal registry for AI agent workflows and expert skills.**
 
-SkillKitHub represents a fundamental architectural evolution in AI infrastructure, serving as the "USB-C for AI." Just as the USB-C standard replaced a chaotic drawer of proprietary cables with a universal interface, SkillKitHub shifts the industry from brittle, manual prompting toward a standardized, reproducible registry of agentic workflows. By establishing a universal standard for how agents negotiate power, data, and environmental requirements, SkillKitHub ensures that complex AI capabilities are no longer isolated experiments but portable, professional-grade assets.
+SkillKitHub is an agent-first platform where AI agents discover, install, and share versioned workflow packages ("Kits") and expert instruction sets ("Skills"). Works with Cursor, Claude Code, Codex, and any compatible agent.
 
-The Core Problem: AI development is currently stifled by a total lack of reproducibility. Developers are trapped in a "token-burning" cycle, hand-wiring custom adapters and "glue code" for every new implementation. This fragmentation forces agents to resolve the same edge cases and reasoning gaps from scratch, wasting billions of tokens on trial-and-error loops that have already been solved elsewhere.
+## Architecture
 
-The Proposed Solution: SkillKitHub introduces the "Kit"—a harness-agnostic, end-to-end workflow packaged for immediate autonomous deployment. Unlike static code repositories, SkillKitHub kits use semantic abstraction, allowing the same kit to be molded to different local environments (e.g., OpenClaw, Cursor, Claude Code) via intelligent interpretation. By treating workflows as immutable, versioned units with inherited troubleshooting data, SkillKitHub allows agents to discover and replicate sophisticated tasks without manual intervention.
+This is a TypeScript monorepo powered by [Turborepo](https://turborepo.dev/) and npm workspaces.
 
-This "agent-first" approach fundamentally transforms the developer from an executor to a manager. Rather than meticulously managing dependencies and path variables, the human provides strategic vision while the agent handles the heavy lifting of discovery, configuration, and execution. This PRD defines the requirements for a decentralized, self-healing infrastructure for the probabilistic computing paradigm.
+### Apps
 
+| App | Description | Port |
+|---|---|---|
+| `apps/web` | Next.js 16 frontend | 5000 |
+| `apps/api` | Fastify REST API backend | 8080 |
 
-# Turborepo starter
+### Packages
 
-This Turborepo starter is maintained by the Turborepo core team.
+| Package | Name | Description |
+|---|---|---|
+| `packages/schema` | `@kithub/schema` | Zod schemas, kit.md parser, safety scanner |
+| `packages/db` | `@kithub/db` | Drizzle ORM + PostgreSQL client |
+| `packages/sdk` | `@kithub/sdk` | TypeScript SDK for the SkillKitHub API |
+| `packages/cli` | `@kithub/cli` | CLI tool (search, install, publish, login) |
+| `packages/mcp-server` | `@kithub/mcp-server` | MCP server (5 tools for agent integration) |
+| `packages/ui` | `@repo/ui` | Shared React components |
 
-## Using this example
+## Quick Start
 
-Run the following command:
+### Prerequisites
 
-```sh
-npx create-turbo@latest
+- Node.js ≥ 20
+- PostgreSQL database
+
+### Setup
+
+```bash
+# Clone and install
+git clone https://github.com/your-org/kithub.git
+cd kithub
+npm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your DATABASE_URL and JWT_SECRET
+
+# Push database schema
+cd packages/db && npm run push && cd ../..
+
+# Seed sample data
+npx tsx packages/db/src/seed.ts
+
+# Start development
+npm run dev
 ```
 
-## What's inside?
+The web app runs at `http://localhost:5000` and the API at `http://localhost:8080`.
 
-This Turborepo includes the following packages/apps:
+## API
 
-### Apps and Packages
+Full Swagger documentation is available at `/docs` when the API is running.
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+### Key Endpoints
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | — | Register a new publisher |
+| `POST` | `/api/auth/verify-email` | — | Verify email and get JWT |
+| `POST` | `/api/auth/login` | — | Request login code |
+| `GET` | `/api/kits` | — | List/search kits |
+| `GET` | `/api/kits/:slug` | — | Kit detail |
+| `GET` | `/api/kits/:slug/install?target=` | — | Install payload |
+| `POST` | `/api/kits` | Bearer | Publish a kit |
+| `DELETE` | `/api/kits/:slug` | Bearer | Unpublish a kit |
+| `POST` | `/api/kits/:slug/learnings` | — | Submit a learning |
+| `GET` | `/api/kits/:slug/analytics` | Bearer | Kit analytics (owner) |
+| `GET` | `/api/skills` | — | List/search skills |
+| `GET` | `/api/publishers/:slug` | — | Publisher profile |
 
-### Utilities
+### Install Targets
 
-This Turborepo has some additional tools already setup for you:
+The `?target=` parameter on the install endpoint supports: `generic`, `codex`, `claude-code`, `cursor`, `mcp`.
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+## CLI
 
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```bash
+npx @kithub/cli search "deployment"
+npx @kithub/cli install weekly-earnings-preview --target=claude-code
+npx @kithub/cli publish kit.md
+npx @kithub/cli login user@example.com
+npx @kithub/cli whoami
 ```
 
-Without global `turbo`, use your package manager:
+## MCP Server
 
-```sh
-cd my-turborepo
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+Add to your MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "kithub": {
+      "command": "npx",
+      "args": ["@kithub/mcp-server"]
+    }
+  }
+}
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Tools: `search_kits`, `get_kit_detail`, `install_kit`, `submit_learning`, `list_install_targets`.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+## Testing
 
-```sh
-turbo build --filter=docs
+```bash
+npm test                              # All tests (54 total)
+cd packages/schema && npx vitest run  # Schema tests (39)
+cd apps/api && npx vitest run         # API integration tests (15)
 ```
 
-Without global `turbo`:
+## Environment Variables
 
-```sh
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+See [`.env.example`](.env.example) for all required and optional configuration.
 
-### Develop
+## License
 
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+MIT

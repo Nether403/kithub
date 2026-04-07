@@ -11,21 +11,33 @@ import { skillRoutes } from "./routes/skills";
 import { authMiddleware } from "./middleware/auth";
 import { db, healthCheck } from "@kithub/db";
 
+const isProduction = process.env.NODE_ENV === "production";
+
+// ── JWT Secret Enforcement ─────────────────────────────────────
+const jwtSecret = process.env.JWT_SECRET;
+if (isProduction && !jwtSecret) {
+  console.error("\n  ✕ FATAL: JWT_SECRET environment variable is required in production.\n");
+  process.exit(1);
+}
+
 const fastify = createFastify({ logger: true });
 
 async function start() {
   // ── Plugins ───────────────────────────────────────────────────
+  const corsOrigins: string[] = [];
+  if (process.env.WEB_URL) corsOrigins.push(process.env.WEB_URL);
+  if (process.env.REPLIT_DEV_DOMAIN) corsOrigins.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+  if (!isProduction) {
+    corsOrigins.push("http://localhost:3000", "http://localhost:5000");
+  }
+
   await fastify.register(cors, {
-    origin: [
-      process.env.WEB_URL || "http://localhost:3000",
-      "http://localhost:5000",
-      `https://${process.env.REPLIT_DEV_DOMAIN || ""}`,
-    ].filter(Boolean),
+    origin: corsOrigins.length > 0 ? corsOrigins : false,
     credentials: true,
   });
 
   await fastify.register(jwt, {
-    secret: process.env.JWT_SECRET || "kithub-dev-secret-change-in-prod",
+    secret: jwtSecret || "kithub-dev-secret-change-in-prod",
   });
 
   await fastify.register(rateLimit, {

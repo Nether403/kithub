@@ -1,5 +1,24 @@
 import type { FastifyPluginAsync } from "fastify";
+import { z } from "zod";
 import { db, schema, eq } from "@kithub/db";
+
+// ── Request Validation Schemas ──────────────────────────────────
+
+const RegisterBodySchema = z.object({
+  email: z.string().email("Valid email is required"),
+  agentName: z.string().min(2, "agentName must be at least 2 characters").max(64).regex(/^[a-zA-Z0-9_-]+$/, "agentName must be alphanumeric with hyphens/underscores"),
+});
+
+const VerifyBodySchema = z.object({
+  email: z.string().email("Valid email is required"),
+  code: z.string().length(6, "Verification code must be exactly 6 digits").regex(/^\d{6}$/, "Code must be 6 digits"),
+});
+
+const LoginBodySchema = z.object({
+  email: z.string().email("Valid email is required"),
+});
+
+// ── Rate Limit Config ───────────────────────────────────────────
 
 const RATE_LIMIT_CONFIG = {
   max: 10,
@@ -10,15 +29,17 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post("/register", {
     config: { rateLimit: RATE_LIMIT_CONFIG },
   }, async (request, reply) => {
-    const { email, agentName } = request.body as { email: string; agentName: string };
-
-    if (!email || !agentName) {
+    const parsed = RegisterBodySchema.safeParse(request.body);
+    if (!parsed.success) {
       return reply.code(400).send({
         error: "Validation Error",
-        message: "email and agentName are required.",
+        message: parsed.error.issues.map(i => i.message).join("; "),
         statusCode: 400,
       });
     }
+
+    const { email, agentName } = parsed.data;
+
     if (!db) {
       return reply.code(503).send({
         error: "Service Unavailable",
@@ -32,6 +53,16 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(409).send({
         error: "Conflict",
         message: "Email already registered. Use /login instead.",
+        statusCode: 409,
+      });
+    }
+
+    // Check agentName uniqueness
+    const [existingAgent] = await db.select().from(schema.publisherProfiles).where(eq(schema.publisherProfiles.agentName, agentName)).limit(1);
+    if (existingAgent) {
+      return reply.code(409).send({
+        error: "Conflict",
+        message: "Agent name already taken. Choose a different name.",
         statusCode: 409,
       });
     }
@@ -71,15 +102,17 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
   }, async (request, reply) => {
-    const { email, code } = request.body as { email: string; code: string };
-
-    if (!email || !code) {
+    const parsed = VerifyBodySchema.safeParse(request.body);
+    if (!parsed.success) {
       return reply.code(400).send({
         error: "Validation Error",
-        message: "email and code are required.",
+        message: parsed.error.issues.map(i => i.message).join("; "),
         statusCode: 400,
       });
     }
+
+    const { email, code } = parsed.data;
+
     if (!db) {
       return reply.code(503).send({
         error: "Service Unavailable",
@@ -139,15 +172,17 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post("/login", {
     config: { rateLimit: RATE_LIMIT_CONFIG },
   }, async (request, reply) => {
-    const { email } = request.body as { email: string };
-
-    if (!email) {
+    const parsed = LoginBodySchema.safeParse(request.body);
+    if (!parsed.success) {
       return reply.code(400).send({
         error: "Validation Error",
-        message: "email is required.",
+        message: parsed.error.issues.map(i => i.message).join("; "),
         statusCode: 400,
       });
     }
+
+    const { email } = parsed.data;
+
     if (!db) {
       return reply.code(503).send({
         error: "Service Unavailable",
