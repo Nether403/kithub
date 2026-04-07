@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { ToastProvider } from "./components/Toast";
+import Nav from "./components/Nav";
 
 export const metadata: Metadata = {
   title: "KitHub — The Universal Agent Interface",
@@ -33,17 +34,7 @@ export default function RootLayout({
         <ToastProvider>
           <a href="#main-content" className="skip-to-content">Skip to content</a>
 
-          <nav className="nav" aria-label="Main navigation">
-            <div className="nav-inner">
-              <a href="/" className="nav-brand">KitHub</a>
-              <div className="nav-links" role="navigation">
-                <a href="/registry">Registry</a>
-                <a href="/publish">Publish</a>
-                <a href="/dashboard">Dashboard</a>
-                <a href="/auth" className="btn btn-sm">Sign In</a>
-              </div>
-            </div>
-          </nav>
+          <Nav />
 
           <div id="main-content">
             {children}

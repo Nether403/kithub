@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -10,6 +10,35 @@ export default function PublishPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const stepLabels = ["Paste", "Validate", "Publish"];
+
+  const handleFileRead = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result;
+      if (typeof text === "string") setRaw(text);
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileRead(file);
+  }, [handleFileRead]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(false);
+  }, []);
 
   const handleValidate = () => {
     setError("");
@@ -86,7 +115,12 @@ export default function PublishPage() {
 
       <div className="step-indicator" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={3} aria-label="Publish progress">
         {[1, 2, 3].map(s => (
-          <div key={s} className={`step-bar ${step >= s ? "step-bar-active" : "step-bar-inactive"}`} />
+          <div key={s} className="step-indicator-item">
+            <div className={`step-bar ${step >= s ? "step-bar-active" : "step-bar-inactive"}`} />
+            <span className={`step-indicator-label ${step >= s ? "step-indicator-label-active" : ""}`}>
+              {stepLabels[s - 1]}
+            </span>
+          </div>
         ))}
       </div>
 
@@ -95,8 +129,36 @@ export default function PublishPage() {
           <div className="glass-panel">
             <h2 className="step-heading">1. Paste Your Kit.md</h2>
             <p className="step-description">
-              Paste the complete contents of your kit.md file below. Must include YAML frontmatter and all 6 required body sections.
+              Paste the complete contents of your kit.md file below, or drag and drop a file. Must include YAML frontmatter and all 6 required body sections.
             </p>
+
+            <div
+              className={`drop-zone ${dragOver ? "drop-zone-active" : ""} ${raw ? "drop-zone-has-content" : ""}`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={() => !raw && fileInputRef.current?.click()}
+            >
+              {!raw ? (
+                <div className="drop-zone-placeholder">
+                  <span className="drop-zone-icon" aria-hidden="true">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  </span>
+                  <span>Drag & drop your kit.md file here, or click to browse</span>
+                  <span className="drop-zone-hint">or paste your content in the editor below</span>
+                </div>
+              ) : null}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".md,.markdown,.txt"
+                className="drop-zone-input"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileRead(file);
+                }}
+              />
+            </div>
 
             <textarea
               className="input input-mono"
@@ -107,7 +169,6 @@ export default function PublishPage() {
             />
 
             {error && <div className="alert alert-error mt-1">{error}</div>}
-
 
             <div className="flex-end">
               <button onClick={handleValidate} className="btn" disabled={!raw.trim()}>
@@ -163,8 +224,13 @@ export default function PublishPage() {
             <button onClick={() => { setStep(1); setError(""); }} className="btn btn-secondary">
               ← Edit
             </button>
-            <button onClick={handlePublish} className="btn" disabled={loading}>
-              {loading ? "Scanning & Publishing..." : "Scan & Publish →"}
+            <button onClick={handlePublish} className="btn btn-publish" disabled={loading}>
+              {loading ? (
+                <>
+                  <span className="btn-spinner" aria-hidden="true" />
+                  Scanning & Publishing...
+                </>
+              ) : "Scan & Publish →"}
             </button>
           </div>
         </div>
