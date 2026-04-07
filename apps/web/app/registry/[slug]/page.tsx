@@ -3,24 +3,12 @@ import Link from "next/link";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 async function getKit(slug: string) {
-  try {
-    const res = await fetch(`${API_URL}/api/kits/${slug}`, { cache: "no-store" });
-    if (!res.ok) throw new Error("Not found");
-    return res.json();
-  } catch {
-    return {
-      slug,
-      title: "Weekly Earnings Preview",
-      summary: "Automated job for earnings report tracking",
-      version: "1.2.0",
-      installs: 1204,
-      learningsCount: 2,
-      tags: ["finance", "scheduling"],
-      scan: { score: 9, status: "passed", findings: [{ type: "tip", message: "Consider adding a fileManifest" }] },
-      conformanceLevel: "standard",
-      rawMarkdown: `---\nschema: "kit/1.0"\nslug: "${slug}"\ntitle: "Weekly Earnings Preview"\nversion: "1.2.0"\nmodel:\n  provider: openai\n  name: gpt-4o-2024-11-20\n  hosting: hosted\n---\n\n## Goal\nExtract earnings sentiment from public financial news.\n\n## When to Use\nEvery Monday before market open.\n\n## Setup\nEnsure OPENAI_API_KEY is set.\n\n## Steps\n1. Read ticker watchlist\n2. Fetch headlines via Firecrawl\n3. Summarize with GPT-4o\n4. Generate Excel report\n5. Email report\n\n## Constraints\nMax 50 tickers per run.\n\n## Safety Notes\nNever store API keys in kit files.`,
-    };
+  const res = await fetch(`${API_URL}/api/kits/${slug}`, { cache: "no-store" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || `Failed to load kit (${res.status})`);
   }
+  return res.json();
 }
 
 export default async function KitDetail({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
@@ -29,12 +17,10 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
 
   const scoreBadgeClass = (kit.scan?.score ?? 0) >= 9 ? "high" : (kit.scan?.score ?? 0) >= 7 ? "medium" : "low";
 
-  // Extract body sections from rawMarkdown for display
   const bodyContent = kit.rawMarkdown?.split(/^---[\s\S]*?---/m)[1] || kit.rawMarkdown || "";
 
   return (
     <main className="container" style={{ paddingTop: '3rem', paddingBottom: '4rem' }}>
-      {/* Header */}
       <div style={{ marginBottom: '2.5rem' }}>
         <Link href="/registry" style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
           ← Back to Registry
@@ -60,11 +46,8 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
         </div>
       </div>
 
-      {/* Two-column layout */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '2.5rem' }}>
-        {/* Main content */}
         <div>
-          {/* Kit.md Viewer */}
           <div className="glass-panel" style={{ marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
               Kit Specification
@@ -81,7 +64,6 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
             </div>
           </div>
 
-          {/* Learnings */}
           <div className="glass-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1rem' }}>Community Learnings</h3>
@@ -90,16 +72,14 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
               Learnings are community-submitted solutions to edge cases — rate limits, runtime conflicts, and platform-specific quirks.
             </p>
-            <a href={`/registry/${params.slug}#submit-learning`} className="btn btn-secondary btn-sm">
+            <a href={`/registry/${slug}#submit-learning`} className="btn btn-secondary btn-sm">
               Submit a Learning
             </a>
           </div>
         </div>
 
-        {/* Sidebar */}
         <div>
           <div className="sidebar-sticky" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Agent Install (PRIMARY) */}
             <div className="install-primary">
               <div className="glass-panel">
                 <h3>⚡ Agent Installation</h3>
@@ -107,22 +87,20 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
                   Paste this to Cursor, Claude Code, or OpenClaw:
                 </p>
                 <div className="terminal-block" style={{ fontSize: '0.8rem' }}>
-                  Fetch the KitHub kit at <strong>kithub.com/registry/{params.slug}</strong> and follow it.<span className="cursor"></span>
+                  Fetch the KitHub kit at <strong>kithub.com/registry/{slug}</strong> and follow it.<span className="cursor"></span>
                 </div>
 
-                {/* Legacy CLI (COLLAPSED) */}
                 <div className="install-legacy" style={{ marginTop: '1rem' }}>
                   <details>
                     <summary>CLI fallback</summary>
                     <div className="terminal-block" style={{ fontSize: '0.75rem' }}>
-                      npx @kithub/cli install {params.slug} --target=claude-code
+                      npx @kithub/cli install {slug} --target=claude-code
                     </div>
                   </details>
                 </div>
               </div>
             </div>
 
-            {/* Stats */}
             <div className="glass-panel">
               <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Stats & Safety</h3>
               <ul style={{ listStyle: 'none', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -145,7 +123,6 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
               </ul>
             </div>
 
-            {/* Scan Findings */}
             {kit.scan?.findings?.length > 0 && (
               <div className="glass-panel">
                 <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Scanner Notes</h3>

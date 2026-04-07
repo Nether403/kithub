@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { ToastProvider } from "./components/Toast";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import Nav from "./components/Nav";
 
 export const metadata: Metadata = {
@@ -37,7 +38,9 @@ export default function RootLayout({
           <Nav />
 
           <div id="main-content">
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
 
           <footer className="footer" role="contentinfo">

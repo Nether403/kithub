@@ -6,6 +6,15 @@ import { useToast } from "../components/Toast";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
+async function apiFetch(url: string, options?: RequestInit) {
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export default function Dashboard() {
   const [kits, setKits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,18 +35,16 @@ export default function Dashboard() {
       try { setUser(JSON.parse(storedUser)); } catch {}
     }
 
-    fetch(`${API_URL}/api/kits`, {
+    apiFetch(`${API_URL}/api/kits`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(res => res.json())
       .then(data => {
         setKits(data.kits || []);
         setLoading(false);
       })
-      .catch(() => {
-        setKits([
-          { slug: "weekly-earnings-preview", title: "Weekly Earnings Preview", version: "1.2.0", installs: 1204, score: 9, tags: ["finance"] },
-        ]);
+      .catch((err) => {
+        showToast(err.message || "Failed to load your kits", "error");
+        setKits([]);
         setLoading(false);
       });
   }, []);

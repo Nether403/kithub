@@ -12,16 +12,18 @@ import { requirePublisher, type JwtUser } from "../middleware/auth";
 
 export const kitRoutes: FastifyPluginAsync = async (fastify) => {
 
-  // ═══════════════════════════════════════════════════════════════
-  // GET /api/kits — Browse & Search the Registry
-  // ═══════════════════════════════════════════════════════════════
-  fastify.get("/", async (request) => {
+  fastify.get("/", async (request, reply) => {
     const { q, tag } = request.query as { q?: string; tag?: string };
-    if (!db) return { kits: [] };
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
 
     const rawKits = await searchKits(q, tag);
 
-    // Enrich each kit with stats
     const enriched = await Promise.all(
       rawKits.map(async (kit) => {
         const release = await getLatestRelease(kit.slug);
@@ -45,15 +47,24 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     return { kits: enriched, total: enriched.length };
   });
 
-  // ═══════════════════════════════════════════════════════════════
-  // GET /api/kits/:slug — Kit Detail
-  // ═══════════════════════════════════════════════════════════════
   fastify.get("/:slug", async (request, reply) => {
     const { slug } = request.params as { slug: string };
-    if (!db) return reply.code(503).send({ error: "Database not connected" });
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
 
     const kit = await getKitBySlug(slug);
-    if (!kit) return reply.code(404).send({ error: `Kit "${slug}" not found.` });
+    if (!kit) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: `Kit "${slug}" not found.`,
+        statusCode: 404,
+      });
+    }
 
     const release = await getLatestRelease(slug);
     const tags = await getKitTags(slug);
@@ -79,18 +90,15 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     };
   });
 
-  // ═══════════════════════════════════════════════════════════════
-  // GET /api/kits/:slug/install — Install Payload (Target Contract)
-  // ═══════════════════════════════════════════════════════════════
   fastify.get("/:slug/install", async (request, reply) => {
     const { slug } = request.params as { slug: string };
     const { target } = request.query as { target?: string };
 
-    // Enforce ?target= as per PRD: 400 if omitted
     if (!target) {
       return reply.code(400).send({
-        error: "?target= parameter is required",
-        message: "Specify the agent harness to receive targeted install instructions.",
+        error: "Validation Error",
+        message: "?target= parameter is required. Specify the agent harness to receive targeted install instructions.",
+        statusCode: 400,
         allowedTargets: SUPPORTED_TARGETS,
         example: `/api/kits/${slug}/install?target=claude-code`,
       });
@@ -98,37 +106,57 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (!isValidTarget(target)) {
       return reply.code(400).send({
-        error: `Invalid target: "${target}"`,
+        error: "Validation Error",
+        message: `Invalid target: "${target}".`,
+        statusCode: 400,
         allowedTargets: SUPPORTED_TARGETS,
       });
     }
 
-    if (!db) return reply.code(503).send({ error: "Database not connected" });
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
 
     const kit = await getKitBySlug(slug);
-    if (!kit) return reply.code(404).send({ error: `Kit "${slug}" not found.` });
+    if (!kit) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: `Kit "${slug}" not found.`,
+        statusCode: 404,
+      });
+    }
 
     const release = await getLatestRelease(slug);
-    if (!release) return reply.code(404).send({ error: "No published release for this kit." });
+    if (!release) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: "No published release for this kit.",
+        statusCode: 404,
+      });
+    }
 
-    // Try to parse frontmatter from stored data
     let frontmatter;
     try {
       const parsed = parseKitMd(release.rawMarkdown);
       frontmatter = parsed.frontmatter;
     } catch {
-      // Fall back to stored parsed frontmatter
       frontmatter = release.parsedFrontmatter as any;
     }
 
     if (!frontmatter) {
-      return reply.code(500).send({ error: "Unable to parse kit frontmatter." });
+      return reply.code(500).send({
+        error: "Internal Server Error",
+        message: "Unable to parse kit frontmatter.",
+        statusCode: 500,
+      });
     }
 
-    // Record install event
     await db.insert(schema.kitInstallEvents).values({ kitSlug: slug, target });
 
-    // Generate target-specific payload
     const payload = generateInstallPayload(
       { frontmatter, rawMarkdown: release.rawMarkdown },
       target
@@ -137,38 +165,55 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     return payload;
   });
 
-  // ═══════════════════════════════════════════════════════════════
-  // POST /api/kits — Publish a Kit (Auth Required)
-  // ═══════════════════════════════════════════════════════════════
-  fastify.post("/", { preHandler: [requirePublisher] }, async (request, reply) => {
+  fastify.post("/", {
+    preHandler: [requirePublisher],
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: "1 minute",
+      },
+    },
+  }, async (request, reply) => {
     const { rawMarkdown } = request.body as { rawMarkdown: string };
 
     if (!rawMarkdown) {
-      return reply.code(400).send({ error: "rawMarkdown is required. Paste your kit.md content." });
+      return reply.code(400).send({
+        error: "Validation Error",
+        message: "rawMarkdown is required. Paste your kit.md content.",
+        statusCode: 400,
+      });
     }
-    if (!db) return reply.code(503).send({ error: "Database not connected" });
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
 
-    // Parse and validate the kit.md
     let parsed;
     try {
       parsed = parseKitMd(rawMarkdown);
     } catch (err: any) {
       return reply.code(422).send({
-        error: "Kit validation failed",
+        error: "Validation Error",
+        message: "Kit validation failed.",
+        statusCode: 422,
         details: err.message,
       });
     }
 
-    // Run safety scanner
     const scanResult = scanKit(rawMarkdown, parsed.frontmatter);
 
-    // Upsert the kit
     const jwtUser = request.user as JwtUser;
     const existingKit = await getKitBySlug(parsed.frontmatter.slug);
     if (existingKit) {
-      // Check ownership
       if (existingKit.publisherId !== jwtUser.publisherId) {
-        return reply.code(403).send({ error: "You don't own this kit slug." });
+        return reply.code(403).send({
+          error: "Forbidden",
+          message: "You don't own this kit slug.",
+          statusCode: 403,
+        });
       }
       await db.update(schema.kits)
         .set({ title: parsed.frontmatter.title, summary: parsed.frontmatter.summary, updatedAt: new Date() })
@@ -182,7 +227,6 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    // Create release
     const releaseId = crypto.randomUUID();
     await db.insert(schema.kitReleases).values({
       id: releaseId,
@@ -193,7 +237,6 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       conformanceLevel: parsed.conformanceLevel,
     });
 
-    // Save scan results
     await db.insert(schema.kitReleaseScans).values({
       releaseId,
       score: scanResult.score,
@@ -201,7 +244,6 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       status: scanResult.passed ? "passed" : "failed",
     });
 
-    // Update tags
     await db.delete(schema.kitTags).where(eq(schema.kitTags.kitSlug, parsed.frontmatter.slug));
     if (parsed.frontmatter.tags.length > 0) {
       await db.insert(schema.kitTags).values(
@@ -223,9 +265,6 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     };
   });
 
-  // ═══════════════════════════════════════════════════════════════
-  // POST /api/kits/:slug/learnings — Submit a Learning
-  // ═══════════════════════════════════════════════════════════════
   fastify.post("/:slug/learnings", async (request, reply) => {
     const { slug } = request.params as { slug: string };
     const { context, payload } = request.body as {
@@ -233,11 +272,29 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       payload: string;
     };
 
-    if (!payload) return reply.code(400).send({ error: "payload is required (description of the learning)." });
-    if (!db) return reply.code(503).send({ error: "Database not connected" });
+    if (!payload) {
+      return reply.code(400).send({
+        error: "Validation Error",
+        message: "payload is required (description of the learning).",
+        statusCode: 400,
+      });
+    }
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
 
     const kit = await getKitBySlug(slug);
-    if (!kit) return reply.code(404).send({ error: `Kit "${slug}" not found.` });
+    if (!kit) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: `Kit "${slug}" not found.`,
+        statusCode: 404,
+      });
+    }
 
     await db.insert(schema.learnings).values({
       kitSlug: slug,

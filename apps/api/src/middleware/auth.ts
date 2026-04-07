@@ -14,10 +14,6 @@ declare module "@fastify/jwt" {
   }
 }
 
-/**
- * JWT authentication middleware for Fastify.
- * Decorates request.user when a valid Bearer token is present.
- */
 export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
   fastify.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
     const publicPaths = [
@@ -39,30 +35,42 @@ export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
 
     const authHeader = request.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
-      reply.code(401).send({ error: "Authentication required. Include Bearer token." });
+      reply.code(401).send({
+        error: "Unauthorized",
+        message: "Authentication required. Include Bearer token.",
+        statusCode: 401,
+      });
       return;
     }
 
     try {
       await request.jwtVerify();
     } catch {
-      reply.code(401).send({ error: "Invalid or expired token." });
+      reply.code(401).send({
+        error: "Unauthorized",
+        message: "Invalid or expired token.",
+        statusCode: 401,
+      });
     }
   });
 });
 
-/**
- * Guard for publisher-only endpoints.
- * Use as a preHandler: { preHandler: [requirePublisher] }
- */
 export async function requirePublisher(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as JwtUser | undefined;
   if (!user) {
-    reply.code(401).send({ error: "Authentication required." });
+    reply.code(401).send({
+      error: "Unauthorized",
+      message: "Authentication required.",
+      statusCode: 401,
+    });
     return;
   }
   if (!user.publisherId) {
-    reply.code(403).send({ error: "Publisher profile required. Complete email verification first." });
+    reply.code(403).send({
+      error: "Forbidden",
+      message: "Publisher profile required. Complete email verification first.",
+      statusCode: 403,
+    });
     return;
   }
 }

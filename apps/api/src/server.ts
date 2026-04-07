@@ -3,6 +3,7 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
+import rateLimit from "@fastify/rate-limit";
 import { authRoutes } from "./routes/auth";
 import { kitRoutes } from "./routes/kits";
 import { authMiddleware } from "./middleware/auth";
@@ -19,6 +20,10 @@ async function start() {
 
   await fastify.register(jwt, {
     secret: process.env.JWT_SECRET || "kithub-dev-secret-change-in-prod",
+  });
+
+  await fastify.register(rateLimit, {
+    global: false,
   });
 
   await fastify.register(swagger, {
@@ -50,12 +55,31 @@ async function start() {
     return { status: "ok", database: dbOk ? "connected" : "disconnected" };
   });
 
+  // ── Not Found Handler ──────────────────────────────────────────
+  fastify.setNotFoundHandler((request, reply) => {
+    reply.code(404).send({
+      error: "Not Found",
+      message: `Route ${request.method} ${request.url} not found.`,
+      statusCode: 404,
+    });
+  });
+
   // ── Global Error Handler ────────────────────────────────────────
   fastify.setErrorHandler((error, request, reply) => {
     fastify.log.error(error);
     const statusCode = error.statusCode ?? 500;
+
+    if (statusCode === 429) {
+      return reply.code(429).send({
+        error: "Too Many Requests",
+        message: "Rate limit exceeded. Please try again later.",
+        statusCode: 429,
+      });
+    }
+
     reply.code(statusCode).send({
-      error: error.message || "Internal Server Error",
+      error: error.name || "Internal Server Error",
+      message: error.message || "An unexpected error occurred.",
       statusCode,
     });
   });

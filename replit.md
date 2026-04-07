@@ -90,6 +90,32 @@ Multi-column layout: brand description, Product links, Resources links, Communit
 - Fixed TypeScript strict mode errors in `packages/schema/src/index.ts`
 - Fixed `@fastify/jwt` type conflicts in `apps/api/src/middleware/auth.ts`
 
+## Database Migrations (Drizzle)
+Migration files are managed via Drizzle Kit and stored in `packages/db/drizzle/`.
+
+- **Generate migrations** after changing the schema: `cd packages/db && npm run generate`
+- **Apply migrations** to the database: `cd packages/db && npx drizzle-kit migrate` (requires `DATABASE_URL`)
+- **Push schema** directly (dev only): `cd packages/db && npm run push`
+- Migration config: `packages/db/drizzle.config.ts`
+
+## API Rate Limiting
+The API uses `@fastify/rate-limit` with per-route configuration (global rate limiting is disabled).
+Rate-limited endpoints (10 req/min per IP):
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/kits` (publish)
+
+## API Error Format
+All API error responses follow a consistent shape:
+```json
+{ "error": "Error Type", "message": "Human-readable description.", "statusCode": 400 }
+```
+
+## Error Handling (Frontend)
+- **ErrorBoundary component**: `apps/web/app/components/ErrorBoundary.tsx` — Wraps all pages in the root layout to catch unexpected React errors.
+- **Next.js error.tsx files**: `apps/web/app/dashboard/error.tsx`, `apps/web/app/registry/error.tsx`, `apps/web/app/registry/[slug]/error.tsx` — Route-level error boundaries with retry buttons.
+- **Toast notifications**: API fetch failures surface user-friendly error messages via the existing toast system.
+
 ## Known Issues
-- `registry/[slug]/page.tsx` has a TypeScript error (`params` not defined) — pre-existing, not related to design system work
 - `DATABASE_URL` secret not set — API starts but DB calls fail at runtime
+- JWT dev fallback secret in server.ts — ensure `JWT_SECRET` env var is set in production

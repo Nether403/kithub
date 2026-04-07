@@ -3,26 +3,18 @@ import Link from "next/link";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 async function getKits(q?: string, tag?: string) {
-  try {
-    const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    if (tag) params.set("tag", tag);
-    const qs = params.toString();
-    const res = await fetch(`${API_URL}/api/kits${qs ? `?${qs}` : ""}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("API unavailable");
-    return res.json();
-  } catch {
-    // Fallback mock data when API isn't running
-    return {
-      kits: [
-        { slug: "weekly-earnings-preview", title: "Weekly Earnings Preview", summary: "Automated job for earnings report tracking", version: "1.2.0", installs: 1204, tags: ["finance", "scheduling"], score: 9 },
-        { slug: "slack-summarizer", title: "Slack Channel Summarizer", summary: "Generates semantic daily digests of your team's Slack", version: "0.9.5", installs: 853, tags: ["comms", "summary"], score: 8 },
-        { slug: "github-pr-reviewer", title: "Autonomous PR Reviewer", summary: "Checks structural changes and runs security scans on PRs", version: "2.1.0", installs: 3042, tags: ["engineering", "security"], score: 10 },
-      ],
-    };
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (tag) params.set("tag", tag);
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/api/kits${qs ? `?${qs}` : ""}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || `Failed to load kits (${res.status})`);
   }
+  return res.json();
 }
 
 function ScoreBadge({ score }: { score: number | null }) {
