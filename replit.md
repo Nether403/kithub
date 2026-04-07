@@ -140,6 +140,31 @@ All API error responses follow a consistent shape:
 - `install` auto-detects target (Cursor, Claude Code, Codex) and writes files to disk
 - `publish` prints live URL after successful publish, exits with code 1 if blocked
 
+## Testing
+
+### Test Runner
+- `npm test` from root runs all tests via Turborepo
+- Uses **Vitest** as the test framework
+
+### Test Suites
+- **`packages/schema`** — 39 unit tests covering:
+  - `parseKitMd` (valid/invalid kits, conformance levels, missing sections)
+  - `scanKit` (secrets detection, destructive patterns, model grounding, scoring)
+  - `KitFrontmatterSchema` / `KitBodySchema` (Zod validation)
+  - `generateInstallPayload` / `isValidTarget` (all 5 install targets)
+- **`apps/api`** — 15 integration tests covering:
+  - Health check endpoint
+  - Auth flow: register → verify email → get JWT
+  - Kit CRUD: publish → list → detail → install payload
+  - Error cases: 401/400/404 responses
+
+### Running Tests
+```bash
+npm test                    # Run all tests
+cd packages/schema && npx vitest run  # Schema tests only
+cd apps/api && npx vitest run         # API tests only
+```
+
 ## Known Issues
 - `DATABASE_URL` secret not set — API starts but DB calls fail at runtime
 - JWT dev fallback secret in server.ts — ensure `JWT_SECRET` env var is set in production

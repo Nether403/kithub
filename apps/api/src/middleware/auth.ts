@@ -31,9 +31,17 @@ export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
       return false;
     });
 
-    if (isPublic) return;
-
     const authHeader = request.headers.authorization;
+
+    if (isPublic) {
+      if (authHeader?.startsWith("Bearer ")) {
+        try {
+          await request.jwtVerify();
+        } catch {}
+      }
+      return;
+    }
+
     if (!authHeader?.startsWith("Bearer ")) {
       reply.code(401).send({
         error: "Unauthorized",
