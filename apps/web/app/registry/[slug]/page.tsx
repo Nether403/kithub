@@ -75,6 +75,13 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', marginBottom: '0.5rem' }}>{kit.title}</h1>
+          {kit.publisherName && (
+            <p style={{ marginBottom: '0.5rem' }}>
+              <Link href={`/publishers/${kit.publisherName}`} style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: '0.9rem' }}>
+                @{kit.publisherName}
+              </Link>
+            </p>
+          )}
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '1rem' }}>
             {kit.summary}
           </p>

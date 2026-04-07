@@ -1,12 +1,36 @@
 import Link from "next/link";
+import { SortSelector } from "./SortSelector";
+import { Pagination } from "./Pagination";
+import { KitCard, TrendingCard } from "./KitCard";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-async function getKits(q?: string, tag?: string) {
-  const params = new URLSearchParams();
-  if (q) params.set("q", q);
-  if (tag) params.set("tag", tag);
-  const qs = params.toString();
+interface KitListItem {
+  slug: string;
+  title: string;
+  summary: string;
+  publisherName?: string | null;
+  version: string;
+  installs: number;
+  tags: string[];
+  score: number | null;
+}
+
+interface KitsResponse {
+  kits: KitListItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+async function getKits(params: { q?: string; tag?: string; sort?: string; page?: string }): Promise<KitsResponse> {
+  const urlParams = new URLSearchParams();
+  if (params.q) urlParams.set("q", params.q);
+  if (params.tag) urlParams.set("tag", params.tag);
+  if (params.sort) urlParams.set("sort", params.sort);
+  if (params.page) urlParams.set("page", params.page);
+  urlParams.set("limit", "20");
+  const qs = urlParams.toString();
   const res = await fetch(`${API_URL}/api/kits${qs ? `?${qs}` : ""}`, {
     cache: "no-store",
   });
@@ -17,19 +41,29 @@ async function getKits(q?: string, tag?: string) {
   return res.json();
 }
 
-function ScoreBadge({ score }: { score: number | null }) {
-  if (score === null) return null;
-  const level = score >= 9 ? "high" : score >= 7 ? "medium" : "low";
-  return <span className={`score-badge ${level}`}>◆ {score}/10</span>;
+async function getTrending(): Promise<KitListItem[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/kits/trending`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.kits || [];
+  } catch {
+    return [];
+  }
 }
 
 export default async function Registry({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tag?: string }>;
+  searchParams: Promise<{ q?: string; tag?: string; sort?: string; page?: string }>;
 }) {
   const params = await searchParams;
-  const { kits } = await getKits(params.q, params.tag);
+  const [kitsData, trending] = await Promise.all([
+    getKits(params),
+    getTrending(),
+  ]);
+  const { kits, total, page, totalPages } = kitsData;
+  const currentSort = params.sort || "newest";
 
   return (
     <main className="container" style={{ paddingTop: '4rem', paddingBottom: '4rem', minHeight: '70vh' }}>
@@ -42,7 +76,6 @@ export default async function Registry({
         </p>
       </div>
 
-      {/* Search */}
       <form style={{ display: 'flex', gap: '0.75rem', marginBottom: '2.5rem' }}>
         <input
           name="q"
@@ -52,10 +85,30 @@ export default async function Registry({
           defaultValue={params.q}
           style={{ flex: 1 }}
         />
+        {params.sort && <input type="hidden" name="sort" value={params.sort} />}
         <button type="submit" className="btn">Search</button>
       </form>
 
-      {/* Results */}
+      {trending.length > 0 && !params.q && (
+        <div style={{ marginBottom: '3rem' }}>
+          <h2 style={{ fontSize: '1.3rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ color: 'var(--accent)' }}>&#9650;</span> Trending Kits
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+            {trending.map((kit) => (
+              <TrendingCard key={kit.slug} kit={kit} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+          {total} kit{total !== 1 ? 's' : ''} found
+        </span>
+        <SortSelector currentSort={currentSort} searchParams={params} />
+      </div>
+
       <div style={{ display: 'grid', gap: '1rem' }}>
         {kits.length === 0 ? (
           <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
@@ -65,30 +118,15 @@ export default async function Registry({
             </p>
           </div>
         ) : (
-          kits.map((kit: any) => (
-            <Link href={`/registry/${kit.slug}`} key={kit.slug} className="kit-card">
-              <div>
-                <h3>{kit.title}</h3>
-                <p>{kit.summary}</p>
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                  {[...new Set(kit.tags as string[])].map((tag: string) => (
-                    <span key={tag} className="tag-chip">#{tag}</span>
-                  ))}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                  v{kit.version}
-                </div>
-                <ScoreBadge score={kit.score} />
-                <div className="stat-counter" style={{ marginTop: '0.5rem' }}>
-                  {Number(kit.installs).toLocaleString()} installs
-                </div>
-              </div>
-            </Link>
+          kits.map((kit) => (
+            <KitCard key={kit.slug} kit={kit} />
           ))
         )}
       </div>
+
+      {totalPages > 1 && (
+        <Pagination currentPage={page} totalPages={totalPages} searchParams={params} />
+      )}
     </main>
   );
 }

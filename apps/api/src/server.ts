@@ -6,6 +6,7 @@ import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import { authRoutes } from "./routes/auth";
 import { kitRoutes } from "./routes/kits";
+import { publisherRoutes } from "./routes/publishers";
 import { authMiddleware } from "./middleware/auth";
 import { db, healthCheck } from "@kithub/db";
 
@@ -52,6 +53,7 @@ async function start() {
   // ── Routes ──────────────────────────────────────────────────────
   await fastify.register(authRoutes, { prefix: "/api/auth" });
   await fastify.register(kitRoutes, { prefix: "/api/kits" });
+  await fastify.register(publisherRoutes, { prefix: "/api/publishers" });
 
   // ── Health Check ────────────────────────────────────────────────
   fastify.get("/health", async () => {

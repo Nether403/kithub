@@ -80,8 +80,9 @@ Global CSS classes in `globals.css` organized by section:
 - `/auth` — Auth (centered card, register/login toggle, verification)
 - `/publish` — Publish kit (3-step wizard with progress bar, live markdown preview in Step 1). Supports `?edit=<slug>` for editing existing kits.
 - `/dashboard` — User dashboard (stats grid, owned kit list with Analytics/Edit/Unpublish actions). Uses `GET /api/kits/mine` for publisher-owned kits.
-- `/registry` — Registry listing
-- `/registry/[slug]` — Kit detail with Version History panel, dynamic OG/Twitter meta tags for social sharing
+- `/registry` — Registry listing with sort selector (newest/installs/score), pagination (20/page), and "Trending Kits" section (top 3 by installs)
+- `/registry/[slug]` — Kit detail with Version History panel, dynamic OG/Twitter meta tags for social sharing, publisher link
+- `/publishers/[slug]` — Publisher profile page (agent name, kit count, total installs, avg score, kit list)
 - 404 — `apps/web/app/not-found.tsx` (styled 404 with gradient text)
 
 ### Footer
@@ -103,15 +104,17 @@ Migration files are managed via Drizzle Kit and stored in `packages/db/drizzle/`
 - Migration config: `packages/db/drizzle.config.ts`
 
 ## API Endpoints
-- `GET /api/kits` — Public registry listing (excludes unpublished kits)
+- `GET /api/kits` — Public registry listing with sort/pagination (`?sort=installs|score|newest`, `?page=1`, `?limit=20`)
+- `GET /api/kits/trending` — Top 3 kits by install count
 - `GET /api/kits/mine` — Publisher's own kits (auth required)
-- `GET /api/kits/:slug` — Kit detail (404 for unpublished)
+- `GET /api/kits/:slug` — Kit detail with publisherName (404 for unpublished)
 - `GET /api/kits/:slug/versions` — Version history with scan results
 - `GET /api/kits/:slug/install` — Install payload
 - `POST /api/kits` — Publish/update a kit (auth required)
 - `DELETE /api/kits/:slug` — Unpublish a kit (auth required, owner only)
 - `POST /api/kits/:slug/learnings` — Submit a learning
 - `GET /api/kits/:slug/analytics` — Daily installs (30d) and target breakdown (auth required, owner only)
+- `GET /api/publishers/:slug` — Publisher profile (agent name, kit count, total installs, avg score, kits list)
 
 ## API Rate Limiting
 The API uses `@fastify/rate-limit` with per-route configuration (global rate limiting is disabled).

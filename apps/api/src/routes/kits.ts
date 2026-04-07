@@ -3,7 +3,9 @@ import {
   db, schema, eq, desc, ilike, sql,
   getKitBySlug, getLatestRelease, getKitTags,
   getInstallCount, getLearningsCount, getLatestScan,
-  searchKits, getAllReleases, getDailyInstalls, getInstallsByTarget,
+  searchKits, searchKitsPaginated, getTrendingKits, getAllReleases,
+  getDailyInstalls, getInstallsByTarget,
+  getPublisherNameMap,
 } from "@kithub/db";
 import { parseKitMd } from "@kithub/schema";
 import { scanKit } from "@kithub/schema/src/scanner";
@@ -14,7 +16,13 @@ import { notifyOnInstall, notifyOnLearning } from "../services/notifications";
 export const kitRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get("/", async (request, reply) => {
-    const { q, tag } = request.query as { q?: string; tag?: string };
+    const { q, tag, sort, page, limit } = request.query as {
+      q?: string;
+      tag?: string;
+      sort?: string;
+      page?: string;
+      limit?: string;
+    };
     if (!db) {
       return reply.code(503).send({
         error: "Service Unavailable",
@@ -23,29 +31,34 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const rawKits = await searchKits(q, tag);
+    type SortValue = "installs" | "score" | "newest";
+    const validSorts: readonly SortValue[] = ["installs", "score", "newest"];
+    const sortBy: SortValue = validSorts.includes(sort as SortValue) ? (sort as SortValue) : "newest";
+    const pageNum = Math.max(1, parseInt(page || "1", 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit || "20", 10) || 20));
 
-    const enriched = await Promise.all(
-      rawKits.map(async (kit) => {
-        const release = await getLatestRelease(kit.slug);
-        const tags = await getKitTags(kit.slug);
-        const installs = await getInstallCount(kit.slug);
-        const scan = release ? await getLatestScan(release.id) : null;
+    const result = await searchKitsPaginated({
+      query: q,
+      tag,
+      sort: sortBy,
+      page: pageNum,
+      limit: limitNum,
+    });
 
-        return {
-          slug: kit.slug,
-          title: kit.title,
-          summary: kit.summary,
-          version: release?.version ?? "0.0.0",
-          installs,
-          tags: tags.map(t => t.tag),
-          score: scan?.score ?? null,
-          updatedAt: kit.updatedAt,
-        };
-      })
-    );
+    return result;
+  });
 
-    return { kits: enriched, total: enriched.length };
+  fastify.get("/trending", async (request, reply) => {
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
+
+    const trending = await getTrendingKits(3);
+    return { kits: trending };
   });
 
   fastify.get("/mine", { preHandler: [requirePublisher] }, async (request, reply) => {
@@ -119,11 +132,14 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     const installs = await getInstallCount(slug);
     const learnings = await getLearningsCount(slug);
     const scan = release ? await getLatestScan(release.id) : null;
+    const publisherMap = await getPublisherNameMap();
+    const publisherName = publisherMap[kit.publisherId] ?? null;
 
     return {
       slug: kit.slug,
       title: kit.title,
       summary: kit.summary,
+      publisherName,
       version: release?.version ?? "0.0.0",
       rawMarkdown: release?.rawMarkdown ?? "",
       parsedFrontmatter: release?.parsedFrontmatter,
