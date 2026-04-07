@@ -1,7 +1,6 @@
 export default function Home() {
   return (
     <main>
-      {/* ── Hero ──────────────────────────────────────────────── */}
       <section className="hero">
         <div className="container">
           <h1>The USB-C for AI</h1>
@@ -15,24 +14,20 @@ export default function Home() {
             <a href="/publish" className="btn btn-secondary">Publish a Kit</a>
           </div>
 
-          {/* ── Agent-First Quick Start (PRIMARY) ────────────── */}
-          <div className="install-primary" style={{ maxWidth: '720px', margin: '0 auto' }}>
+          <div className="install-primary page-narrow">
             <div className="glass-panel">
               <h3>⚡ Agent-First Quick Start</h3>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              <p className="step-description">
                 Tell your agent (Cursor, Claude Code, OpenClaw) to run this one prompt:
               </p>
               <div className="terminal-block">
                 Fetch the KitHub kit at <strong>kithub.com/registry/weekly-earnings-preview</strong> and follow its specification.<span className="cursor"></span>
               </div>
-              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '1rem', fontFamily: 'var(--font-mono)' }}>
-                Your agent handles discovery, preflight checks, and installation autonomously.
-              </p>
+              <p className="mono-sm form-hint" style={{ marginTop: '1rem' }}>Your agent handles discovery, preflight checks, and installation autonomously.</p>
             </div>
           </div>
 
-          {/* ── Legacy CLI (APPENDIX — collapsed) ────────────── */}
-          <div className="install-legacy" style={{ maxWidth: '720px', margin: '0 auto' }}>
+          <div className="install-legacy page-narrow">
             <details>
               <summary>Manual CLI fallback (headless environments)</summary>
               <div className="terminal-block">
@@ -43,7 +38,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── How It Works ──────────────────────────────────────── */}
       <section className="container">
         <div className="section-header">
           <h2>How It Works</h2>
@@ -69,46 +63,45 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Features ──────────────────────────────────────────── */}
       <section className="container">
         <div className="feature-grid">
           <div className="glass-panel feature-card">
-            <span className="feature-icon">📦</span>
+            <span className="feature-icon" aria-hidden="true">📦</span>
             <h3>Immutable Kits</h3>
             <p>
               Versioned, harness-agnostic workflow packages. A kit encapsulates model, tools, skills, and troubleshooting data in the kit/1.0 standard.
             </p>
           </div>
           <div className="glass-panel feature-card">
-            <span className="feature-icon">🧠</span>
+            <span className="feature-icon" aria-hidden="true">🧠</span>
             <h3>Communal Intelligence</h3>
             <p>
               Agents proactively download &quot;learnings&quot;—community-submitted solutions that prevent redundant token-burning on solved problems.
             </p>
           </div>
           <div className="glass-panel feature-card">
-            <span className="feature-icon">🛡️</span>
+            <span className="feature-icon" aria-hidden="true">🛡️</span>
             <h3>Safe by Design</h3>
             <p>
               Every kit undergoes automated safety scanning: secret detection, destructive pattern flagging, and diagnostic scoring from 1 to 10.
             </p>
           </div>
           <div className="glass-panel feature-card">
-            <span className="feature-icon">🔌</span>
+            <span className="feature-icon" aria-hidden="true">🔌</span>
             <h3>Universal Targets</h3>
             <p>
               Install payloads adapt to your harness: Claude Code, Cursor, Codex, MCP, or generic. One kit, every environment.
             </p>
           </div>
           <div className="glass-panel feature-card">
-            <span className="feature-icon">🗝️</span>
+            <span className="feature-icon" aria-hidden="true">🗝️</span>
             <h3>Resource Bindings</h3>
             <p>
               Credentials are never stored in kits. Pointer-only references resolve at runtime via 1Password, env vars, or vault.
             </p>
           </div>
           <div className="glass-panel feature-card">
-            <span className="feature-icon">📊</span>
+            <span className="feature-icon" aria-hidden="true">📊</span>
             <h3>Agent Analytics</h3>
             <p>
               Track installs, security scores, and learnings per kit. See which workflows drive real value across the community.
