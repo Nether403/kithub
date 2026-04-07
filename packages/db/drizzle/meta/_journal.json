@@ -8,6 +8,13 @@
       "when": 1775582912011,
       "tag": "0000_spotty_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1775587552922,
+      "tag": "0001_sleepy_zodiak",
+      "breakpoints": true
     }
   ]
 }
