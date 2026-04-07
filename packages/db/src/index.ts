@@ -183,6 +183,45 @@ export async function getAllReleases(kitSlug: string) {
   return enriched;
 }
 
+export async function getDailyInstalls(kitSlug: string, days: number = 30) {
+  if (!db) throw new Error("Database not connected");
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString();
+
+  const rows = await db
+    .select({
+      date: sql<string>`date(${schema.kitInstallEvents.createdAt})`,
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.kitInstallEvents)
+    .where(
+      and(
+        eq(schema.kitInstallEvents.kitSlug, kitSlug),
+        sql`${schema.kitInstallEvents.createdAt} >= ${cutoffStr}::timestamp`
+      )
+    )
+    .groupBy(sql`date(${schema.kitInstallEvents.createdAt})`)
+    .orderBy(sql`date(${schema.kitInstallEvents.createdAt})`);
+
+  return rows.map(r => ({ date: String(r.date), count: Number(r.count) }));
+}
+
+export async function getInstallsByTarget(kitSlug: string) {
+  if (!db) throw new Error("Database not connected");
+  const rows = await db
+    .select({
+      target: schema.kitInstallEvents.target,
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.kitInstallEvents)
+    .where(eq(schema.kitInstallEvents.kitSlug, kitSlug))
+    .groupBy(schema.kitInstallEvents.target)
+    .orderBy(sql`count(*) desc`);
+
+  return rows.map(r => ({ target: r.target, count: Number(r.count) }));
+}
+
 export async function healthCheck(): Promise<boolean> {
   if (!db) return false;
   try {

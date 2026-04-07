@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import MarkdownPreview from "../components/MarkdownPreview";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -200,13 +201,21 @@ export default function PublishPage() {
                   </div>
                 )}
 
-                <textarea
-                  className="input input-mono"
-                  placeholder={'---\nschema: "kit/1.0"\nslug: my-awesome-kit\ntitle: My Awesome Kit\nsummary: ...\nversion: 1.0.0\nmodel:\n  provider: openai\n  name: gpt-4o-2024-11-20\n  hosting: hosted\ntags: [automation]\ntools: [firecrawl]\nskills: [web-scraping]\n---\n\n## Goal\n...\n\n## When to Use\n...\n\n## Setup\n...\n\n## Steps\n...\n\n## Constraints\n...\n\n## Safety Notes\n...'}
-                  value={raw}
-                  onChange={(e) => setRaw(e.target.value)}
-                  aria-label="Kit markdown content"
-                />
+                <div className="publish-split-pane">
+                  <div className="publish-split-editor">
+                    <textarea
+                      className="input input-mono"
+                      placeholder={'---\nschema: "kit/1.0"\nslug: my-awesome-kit\ntitle: My Awesome Kit\nsummary: ...\nversion: 1.0.0\nmodel:\n  provider: openai\n  name: gpt-4o-2024-11-20\n  hosting: hosted\ntags: [automation]\ntools: [firecrawl]\nskills: [web-scraping]\n---\n\n## Goal\n...\n\n## When to Use\n...\n\n## Setup\n...\n\n## Steps\n...\n\n## Constraints\n...\n\n## Safety Notes\n...'}
+                      value={raw}
+                      onChange={(e) => setRaw(e.target.value)}
+                      aria-label="Kit markdown content"
+                    />
+                  </div>
+                  <div className="publish-split-preview glass-panel">
+                    <div className="publish-split-preview-header">Live Preview</div>
+                    <MarkdownPreview content={raw} />
+                  </div>
+                </div>
               </>
             )}
 

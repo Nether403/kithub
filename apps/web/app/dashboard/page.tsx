@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SkeletonCard, SkeletonStat } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import AnalyticsDrawer from "../components/Analytics";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<{ email: string; agentName: string } | null>(null);
   const [unpublishSlug, setUnpublishSlug] = useState<string | null>(null);
   const [unpublishing, setUnpublishing] = useState(false);
+  const [analyticsSlug, setAnalyticsSlug] = useState<string | null>(null);
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -183,6 +185,12 @@ export default function Dashboard() {
                 </div>
               </Link>
               <div className="kit-card-actions">
+                <button
+                  onClick={(e) => { e.preventDefault(); setAnalyticsSlug(kit.slug); }}
+                  className="btn btn-sm btn-secondary"
+                >
+                  Analytics
+                </button>
                 <Link href={`/publish?edit=${kit.slug}`} className="btn btn-sm btn-secondary">Edit</Link>
                 <button
                   onClick={(e) => { e.preventDefault(); setUnpublishSlug(kit.slug); }}
@@ -195,6 +203,10 @@ export default function Dashboard() {
           ))
         )}
       </div>
+
+      {analyticsSlug && (
+        <AnalyticsDrawer slug={analyticsSlug} onClose={() => setAnalyticsSlug(null)} />
+      )}
 
       {unpublishSlug && (
         <div className="modal-overlay" onClick={() => !unpublishing && setUnpublishSlug(null)}>

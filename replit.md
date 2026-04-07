@@ -65,6 +65,8 @@ Global CSS classes in `globals.css` organized by section:
 ### Components
 - **Toast system**: `apps/web/app/components/Toast.tsx` — React context + provider for notifications (success/error/warning/info). Wired in root layout via `<ToastProvider>`. Use `useToast()` hook.
 - **Skeleton loaders**: `apps/web/app/components/Skeleton.tsx` — `<SkeletonCard>`, `<SkeletonStat>`, `<SkeletonText>` for loading states.
+- **Analytics drawer**: `apps/web/app/components/Analytics.tsx` — Per-kit analytics modal with SVG bar chart (30-day installs) and target breakdown. Used on Dashboard.
+- **Markdown preview**: `apps/web/app/components/MarkdownPreview.tsx` — Lightweight live-rendered markdown preview (no external deps). Used in publish wizard Step 1.
 
 ### Accessibility
 - Skip-to-content link targeting `#main-content`
@@ -76,10 +78,10 @@ Global CSS classes in `globals.css` organized by section:
 ### Pages
 - `/` — Homepage (hero, quick start, how it works, features)
 - `/auth` — Auth (centered card, register/login toggle, verification)
-- `/publish` — Publish kit (3-step wizard with progress bar). Supports `?edit=<slug>` for editing existing kits.
-- `/dashboard` — User dashboard (stats grid, owned kit list with Edit/Unpublish actions). Uses `GET /api/kits/mine` for publisher-owned kits.
+- `/publish` — Publish kit (3-step wizard with progress bar, live markdown preview in Step 1). Supports `?edit=<slug>` for editing existing kits.
+- `/dashboard` — User dashboard (stats grid, owned kit list with Analytics/Edit/Unpublish actions). Uses `GET /api/kits/mine` for publisher-owned kits.
 - `/registry` — Registry listing
-- `/registry/[slug]` — Kit detail with Version History panel (client-side `VersionHistory` component)
+- `/registry/[slug]` — Kit detail with Version History panel, dynamic OG/Twitter meta tags for social sharing
 - 404 — `apps/web/app/not-found.tsx` (styled 404 with gradient text)
 
 ### Footer
@@ -109,6 +111,7 @@ Migration files are managed via Drizzle Kit and stored in `packages/db/drizzle/`
 - `POST /api/kits` — Publish/update a kit (auth required)
 - `DELETE /api/kits/:slug` — Unpublish a kit (auth required, owner only)
 - `POST /api/kits/:slug/learnings` — Submit a learning
+- `GET /api/kits/:slug/analytics` — Daily installs (30d) and target breakdown (auth required, owner only)
 
 ## API Rate Limiting
 The API uses `@fastify/rate-limit` with per-route configuration (global rate limiting is disabled).

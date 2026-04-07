@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import VersionHistory from "./VersionHistory";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -10,6 +11,49 @@ async function getKit(slug: string) {
     throw new Error(body.message || `Failed to load kit (${res.status})`);
   }
   return res.json();
+}
+
+export async function generateMetadata({ params: paramsPromise }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await paramsPromise;
+  try {
+    const kit = await getKit(slug);
+    const title = `${kit.title} — KitHub`;
+    const description = kit.summary || `Install the ${kit.title} agent workflow kit from KitHub.`;
+    const url = `https://kithub.com/registry/${slug}`;
+
+    const ogImage = `${process.env.NEXT_PUBLIC_BASE_URL || "https://kithub.com"}/og-default.svg`;
+
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        type: "article",
+        url,
+        siteName: "KitHub",
+        images: [
+          {
+            url: ogImage,
+            width: 1200,
+            height: 630,
+            alt: `${kit.title} — KitHub`,
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: [ogImage],
+      },
+    };
+  } catch {
+    return {
+      title: "Kit Not Found — KitHub",
+      description: "This kit could not be found on the KitHub registry.",
+    };
+  }
 }
 
 export default async function KitDetail({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {

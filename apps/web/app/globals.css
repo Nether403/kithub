@@ -1867,3 +1867,143 @@ label {
   justify-content: flex-end;
   margin-top: 1.5rem;
 }
+
+.publish-split-pane {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.publish-split-editor textarea {
+  min-height: 420px;
+  height: 100%;
+  resize: vertical;
+}
+
+.publish-split-preview {
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+.publish-split-preview-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+}
+
+.page-narrow:has(.publish-split-pane) {
+  max-width: 1200px;
+}
+
+@media (max-width: 768px) {
+  .publish-split-pane {
+    grid-template-columns: 1fr;
+  }
+  .publish-split-preview {
+    max-height: 300px;
+  }
+}
+
+.md-preview-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.md-preview-body {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.md-preview-h1 {
+  font-size: 1.4rem;
+  color: var(--text-primary);
+  margin: 1.25rem 0 0.5rem;
+  font-weight: 700;
+}
+
+.md-preview-h2 {
+  font-size: 1.15rem;
+  color: var(--accent);
+  margin: 1.25rem 0 0.5rem;
+  font-weight: 600;
+}
+
+.md-preview-h3 {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin: 1rem 0 0.4rem;
+  font-weight: 600;
+}
+
+.md-preview-code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--accent);
+}
+
+.md-preview-ul {
+  list-style: none;
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+}
+
+.md-preview-li {
+  position: relative;
+  padding-left: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.md-preview-li::before {
+  content: "\2022";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+
+.md-preview-spacer {
+  height: 0.75rem;
+}
+
+.md-preview-frontmatter {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.md-preview-fm-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-bottom: 0.5rem;
+}
+
+.md-preview-fm-key {
+  color: var(--accent);
+}
+
+.md-preview-fm-val {
+  color: var(--text-secondary);
+}
+
+.md-preview-fm-row {
+  margin-bottom: 0.15rem;
+}

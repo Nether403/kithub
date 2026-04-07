@@ -3,7 +3,7 @@ import {
   db, schema, eq, desc, ilike, sql,
   getKitBySlug, getLatestRelease, getKitTags,
   getInstallCount, getLearningsCount, getLatestScan,
-  searchKits, getAllReleases,
+  searchKits, getAllReleases, getDailyInstalls, getInstallsByTarget,
 } from "@kithub/db";
 import { parseKitMd } from "@kithub/schema";
 import { scanKit } from "@kithub/schema/src/scanner";
@@ -433,5 +433,47 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     return { status: "submitted", kitSlug: slug, totalLearnings: count };
+  });
+
+  fastify.get("/:slug/analytics", { preHandler: [requirePublisher] }, async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
+
+    const kit = await getKitBySlug(slug);
+    if (!kit) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: `Kit "${slug}" not found.`,
+        statusCode: 404,
+      });
+    }
+
+    const jwtUser = request.user as JwtUser;
+    if (kit.publisherId !== jwtUser.publisherId) {
+      return reply.code(403).send({
+        error: "Forbidden",
+        message: "You don't own this kit.",
+        statusCode: 403,
+      });
+    }
+
+    const [dailyInstalls, byTarget, totalInstalls] = await Promise.all([
+      getDailyInstalls(slug, 30),
+      getInstallsByTarget(slug),
+      getInstallCount(slug),
+    ]);
+
+    return {
+      slug,
+      totalInstalls,
+      dailyInstalls,
+      byTarget,
+    };
   });
 };

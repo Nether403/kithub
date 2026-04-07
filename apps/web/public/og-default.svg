@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#030304"/>
+  <text x="600" y="280" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="700" fill="#ffffff">KitHub</text>
+  <text x="600" y="360" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#00e88f">The Universal Agent Interface</text>
+  <text x="600" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#7a7a8a">Discover, install, and share versioned AI agent workflows</text>
+  <rect x="570" y="240" width="12" height="12" rx="2" fill="#00e88f" transform="rotate(45 576 246)"/>
+</svg>
