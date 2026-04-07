@@ -1,17 +1,45 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { eq, desc, ilike, sql, and } from "drizzle-orm";
+import * as path from "path";
 import * as schema from "./schema";
+
+// ── Load .env from project root if env vars are not set ──────────
+if (!process.env.DATABASE_URL && !process.env.PGHOST) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const dotenv = require("dotenv");
+    const rootEnv = path.resolve(__dirname, "../../../.env");
+    dotenv.config({ path: rootEnv });
+  } catch {
+    // dotenv not available — ignore
+  }
+}
 
 // ── Connection ────────────────────────────────────────────────────
 
 const connectionString = process.env.DATABASE_URL;
+const hasPgEnv = !!(process.env.PGHOST || process.env.PGDATABASE);
 
-if (!connectionString) {
-  console.warn("[kithub/db] DATABASE_URL not set — database calls will fail at runtime");
+if (!connectionString && !hasPgEnv) {
+  console.warn("[kithub/db] No database credentials found — database calls will fail at runtime");
 }
 
-const client = connectionString ? postgres(connectionString, { max: 10 }) : null;
+let client: ReturnType<typeof postgres> | null = null;
+if (connectionString) {
+  client = postgres(connectionString, { max: 10 });
+} else if (hasPgEnv) {
+  client = postgres({
+    host: process.env.PGHOST,
+    port: parseInt(process.env.PGPORT ?? "5432"),
+    database: process.env.PGDATABASE,
+    username: process.env.PGUSER,
+    password: process.env.PGPASSWORD,
+    max: 10,
+    ssl: "require",
+  });
+}
+
 export const db = client ? drizzle(client, { schema }) : null;
 
 // ── Query Helpers ─────────────────────────────────────────────────
