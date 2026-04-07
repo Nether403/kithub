@@ -94,6 +94,7 @@ export default function AuthPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     aria-required="true"
+                    aria-label="Email address"
                   />
                 </div>
 
@@ -108,6 +109,7 @@ export default function AuthPage() {
                       value={agentName}
                       onChange={(e) => setAgentName(e.target.value)}
                       aria-required="true"
+                      aria-label="Agent name"
                     />
                     <p className="form-hint">Your public publisher identity. Choose wisely.</p>
                   </div>
