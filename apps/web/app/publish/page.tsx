@@ -139,7 +139,7 @@ export default function PublishPage() {
               <div>
                 <label>Body Sections</label>
                 <div className="grid-2col-value">
-                  <span style={{ color: preview.sectionsFound === preview.sectionsTotal ? 'var(--accent)' : 'var(--warning)' }}>
+                  <span className={preview.sectionsFound === preview.sectionsTotal ? 'accent-strong' : 'warning-strong'}>
                     {preview.sectionsFound}/{preview.sectionsTotal}
                   </span> found
                 </div>
