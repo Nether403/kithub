@@ -8,7 +8,7 @@ import {
 import { parseKitMd } from "@kithub/schema";
 import { scanKit } from "@kithub/schema/src/scanner";
 import { generateInstallPayload, isValidTarget, SUPPORTED_TARGETS } from "@kithub/schema/src/targets";
-import { requirePublisher } from "../middleware/auth";
+import { requirePublisher, type JwtUser } from "../middleware/auth";
 
 export const kitRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -163,10 +163,11 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     const scanResult = scanKit(rawMarkdown, parsed.frontmatter);
 
     // Upsert the kit
+    const jwtUser = request.user as JwtUser;
     const existingKit = await getKitBySlug(parsed.frontmatter.slug);
     if (existingKit) {
       // Check ownership
-      if (existingKit.publisherId !== request.user!.publisherId) {
+      if (existingKit.publisherId !== jwtUser.publisherId) {
         return reply.code(403).send({ error: "You don't own this kit slug." });
       }
       await db.update(schema.kits)
@@ -175,7 +176,7 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     } else {
       await db.insert(schema.kits).values({
         slug: parsed.frontmatter.slug,
-        publisherId: request.user!.publisherId!,
+        publisherId: jwtUser.publisherId!,
         title: parsed.frontmatter.title,
         summary: parsed.frontmatter.summary,
       });

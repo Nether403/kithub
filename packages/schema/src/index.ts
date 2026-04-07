@@ -110,15 +110,16 @@ function parseSimpleYaml(yaml: string): Record<string, any> {
     if (trimmed.startsWith("- ") && currentKey) {
       const value = trimmed.slice(2).trim();
       if (currentArray) {
+        const arr: Array<any> = currentArray as Array<any>;
         // Check if it's an object-style array item
         if (value.includes(":")) {
           const obj: Record<string, any> = {};
           // Parse "key: value" from the first line
           const [k, ...vParts] = value.split(":");
           obj[k!.trim()] = vParts.join(":").trim().replace(/^["']|["']$/g, "");
-          currentArray.push(obj);
+          arr.push(obj);
         } else {
-          currentArray.push(value.replace(/^["']|["']$/g, ""));
+          arr.push(value.replace(/^["']|["']$/g, ""));
         }
       } else if (currentObj && currentKey) {
         // This is a sub-object array item with problem/resolution

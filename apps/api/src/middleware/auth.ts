@@ -1,9 +1,16 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import fp from "fastify-plugin";
 
-declare module "fastify" {
-  interface FastifyRequest {
-    user?: { userId: string; publisherId?: string; email: string };
+export interface JwtUser {
+  userId: string;
+  publisherId?: string;
+  email: string;
+}
+
+declare module "@fastify/jwt" {
+  interface FastifyJWT {
+    payload: JwtUser;
+    user: JwtUser;
   }
 }
 
@@ -12,10 +19,7 @@ declare module "fastify" {
  * Decorates request.user when a valid Bearer token is present.
  */
 export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
-  fastify.decorateRequest("user", undefined);
-
   fastify.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
-    // Skip auth for public routes
     const publicPaths = [
       "/api/auth/register",
       "/api/auth/verify-email",
@@ -27,7 +31,6 @@ export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
 
     const isPublic = publicPaths.some(p => {
       if (request.url === p) return true;
-      // Allow GET requests to /api/kits/* (registry browsing is public)
       if (request.method === "GET" && request.url.startsWith("/api/kits")) return true;
       return false;
     });
@@ -41,9 +44,7 @@ export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
     }
 
     try {
-      const token = authHeader.slice(7);
-      const decoded = fastify.jwt.verify<{ userId: string; publisherId?: string; email: string }>(token);
-      request.user = decoded;
+      await request.jwtVerify();
     } catch {
       reply.code(401).send({ error: "Invalid or expired token." });
     }
@@ -55,11 +56,12 @@ export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
  * Use as a preHandler: { preHandler: [requirePublisher] }
  */
 export async function requirePublisher(request: FastifyRequest, reply: FastifyReply) {
-  if (!request.user) {
+  const user = request.user as JwtUser | undefined;
+  if (!user) {
     reply.code(401).send({ error: "Authentication required." });
     return;
   }
-  if (!request.user.publisherId) {
+  if (!user.publisherId) {
     reply.code(403).send({ error: "Publisher profile required. Complete email verification first." });
     return;
   }
