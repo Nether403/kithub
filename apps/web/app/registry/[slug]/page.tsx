@@ -40,7 +40,7 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
             <span style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
               {kit.conformanceLevel} conformance
             </span>
-            {kit.tags?.map((tag: string) => (
+            {[...new Set(kit.tags as string[])].map((tag: string) => (
               <span key={tag} className="tag-chip">#{tag}</span>
             ))}
           </div>

@@ -71,7 +71,7 @@ export default async function Registry({
                 <h3>{kit.title}</h3>
                 <p>{kit.summary}</p>
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                  {kit.tags?.map((tag: string) => (
+                  {[...new Set(kit.tags as string[])].map((tag: string) => (
                     <span key={tag} className="tag-chip">#{tag}</span>
                   ))}
                 </div>

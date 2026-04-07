@@ -165,6 +165,14 @@ cd packages/schema && npx vitest run  # Schema tests only
 cd apps/api && npx vitest run         # API tests only
 ```
 
+## Seed Data
+- **Basic seed**: `npx tsx packages/db/src/seed.ts` — Creates test user + 3 sample kits
+- **JourneyKits seed**: `npx tsx packages/db/src/seed-journeykits.ts` — Fetches ~20 real kits from JourneyKits.ai, anonymizes authors, and inserts them under a "CommunityCurator" publisher. Idempotent (safe to re-run).
+
+## Post-Merge Setup
+- Script: `scripts/post-merge.sh` — Runs `npm install`, rebuilds shared packages, and pushes DB schema
+- Configured in `.replit` `[postMerge]` section
+- Runs automatically after task agent merges
+
 ## Known Issues
-- `DATABASE_URL` secret not set — API starts but DB calls fail at runtime
 - JWT dev fallback secret in server.ts — ensure `JWT_SECRET` env var is set in production
