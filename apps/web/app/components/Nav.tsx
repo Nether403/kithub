@@ -11,9 +11,13 @@ export default function Nav() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const token = localStorage.getItem("kithub_token");
     const stored = localStorage.getItem("kithub_user");
-    if (stored) {
+    if (token && stored) {
       try { setUser(JSON.parse(stored)); } catch {}
+    } else {
+      localStorage.removeItem("kithub_user");
+      setUser(null);
     }
   }, []);
 

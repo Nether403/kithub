@@ -92,7 +92,7 @@ export default function AuthPage() {
           {step === "form" ? (
             <>
               <div className="centered-card-header">
-                <h1>{mode === "register" ? "Create Account" : "Welcome Back"}</h1>
+                <h1>{mode === "register" ? "Create Account" : "Sign In"}</h1>
                 {mode === "register" && (
                   <p className="auth-subtitle">Publisher Passport</p>
                 )}
