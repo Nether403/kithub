@@ -87,7 +87,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <h2 className="page-header" style={{ fontSize: '1.5rem' }}>Your Kits</h2>
+      <h2 className="page-header">Your Kits</h2>
       <div className="item-grid">
         {loading ? (
           <SkeletonCard count={3} />

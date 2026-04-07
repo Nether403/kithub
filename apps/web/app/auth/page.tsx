@@ -70,7 +70,7 @@ export default function AuthPage() {
   return (
     <main className="centered-card">
       <div className="centered-card-inner">
-        <div className="glass-panel" style={{ padding: '2.5rem' }}>
+        <div className="glass-panel glass-panel-padded">
 
           {step === "form" ? (
             <>
@@ -141,7 +141,7 @@ export default function AuthPage() {
               <div className="centered-card-header">
                 <h1>Verify Email</h1>
                 <p>
-                  Enter the 6-digit code sent to <strong style={{ color: 'var(--accent)' }}>{email}</strong>
+                  Enter the 6-digit code sent to <strong className="accent-strong">{email}</strong>
                 </p>
               </div>
 

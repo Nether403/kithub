@@ -824,6 +824,10 @@ label {
   color: var(--accent);
 }
 
+.mt-1 { margin-top: 1rem; }
+.mb-1 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 2rem; }
+
 .page-header-row {
   display: flex;
   justify-content: space-between;
@@ -984,6 +988,11 @@ label {
   margin-bottom: 0.5rem;
 }
 
+.step-heading-spaced {
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
 .step-description {
   color: var(--text-secondary);
   font-size: 0.9rem;
@@ -992,6 +1001,10 @@ label {
 
 .step-panel-spaced {
   margin-bottom: 1.5rem;
+}
+
+.glass-panel-padded {
+  padding: 2.5rem;
 }
 
 /* ── Result Panel ─────────────────────────────────────────────── */

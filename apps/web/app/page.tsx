@@ -23,7 +23,7 @@ export default function Home() {
               <div className="terminal-block">
                 Fetch the KitHub kit at <strong>kithub.com/registry/weekly-earnings-preview</strong> and follow its specification.<span className="cursor"></span>
               </div>
-              <p className="mono-sm form-hint" style={{ marginTop: '1rem' }}>Your agent handles discovery, preflight checks, and installation autonomously.</p>
+              <p className="mono-sm form-hint mt-1">Your agent handles discovery, preflight checks, and installation autonomously.</p>
             </div>
           </div>
 

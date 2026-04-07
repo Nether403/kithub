@@ -106,7 +106,7 @@ export default function PublishPage() {
               aria-label="Kit markdown content"
             />
 
-            {error && <div className="alert alert-error" style={{ marginTop: '1rem' }}>{error}</div>}
+            {error && <div className="alert alert-error mt-1">{error}</div>}
 
 
             <div className="flex-end">
@@ -121,7 +121,7 @@ export default function PublishPage() {
       {step === 2 && preview && (
         <div className="step-panel">
           <div className="glass-panel step-panel-spaced">
-            <h2 className="step-heading" style={{ marginBottom: '1.5rem' }}>2. Validation Preview</h2>
+            <h2 className="step-heading-spaced">2. Validation Preview</h2>
 
             <div className="grid-2col">
               <div>
@@ -157,7 +157,7 @@ export default function PublishPage() {
             </div>
           </div>
 
-          {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{error}</div>}
+          {error && <div className="alert alert-error mb-1">{error}</div>}
 
           <div className="flex-between">
             <button onClick={() => { setStep(1); setError(""); }} className="btn btn-secondary">
@@ -185,7 +185,7 @@ export default function PublishPage() {
                 : "Address the findings below and resubmit."}
             </p>
 
-            <div className="step-panel-spaced" style={{ marginBottom: '2rem' }}>
+            <div className="mb-2">
               <div className={`score-circle ${scoreClass(result.scan.score)}`}>
                 {result.scan.score}
               </div>
