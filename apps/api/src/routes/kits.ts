@@ -9,6 +9,7 @@ import { parseKitMd } from "@kithub/schema";
 import { scanKit } from "@kithub/schema/src/scanner";
 import { generateInstallPayload, isValidTarget, SUPPORTED_TARGETS } from "@kithub/schema/src/targets";
 import { requirePublisher, type JwtUser } from "../middleware/auth";
+import { notifyOnInstall, notifyOnLearning } from "../services/notifications";
 
 export const kitRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -157,12 +158,16 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
 
     await db.insert(schema.kitInstallEvents).values({ kitSlug: slug, target });
 
+    notifyOnInstall(slug).catch((err) => {
+      fastify.log.error({ err, kitSlug: slug }, "Install notification trigger failed");
+    });
+
     const payload = generateInstallPayload(
       { frontmatter, rawMarkdown: release.rawMarkdown },
       target
     );
 
-    return payload;
+    return { ...payload, rawMarkdown: release.rawMarkdown };
   });
 
   fastify.post("/", {
@@ -303,6 +308,10 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     const count = await getLearningsCount(slug);
+
+    notifyOnLearning(slug).catch((err) => {
+      fastify.log.error({ err, kitSlug: slug }, "Learning notification trigger failed");
+    });
 
     return { status: "submitted", kitSlug: slug, totalLearnings: count };
   });

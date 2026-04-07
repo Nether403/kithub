@@ -116,6 +116,18 @@ All API error responses follow a consistent shape:
 - **Next.js error.tsx files**: `apps/web/app/dashboard/error.tsx`, `apps/web/app/registry/error.tsx`, `apps/web/app/registry/[slug]/error.tsx` — Route-level error boundaries with retry buttons.
 - **Toast notifications**: API fetch failures surface user-friendly error messages via the existing toast system.
 
+## Notifications
+- Install and learning events trigger publisher email notifications (max 1 per kit per type per 24h window)
+- `notification_logs` table tracks sent notifications to enforce the 24h dedup window
+- Email delivery: logs to console in dev mode; set `SMTP_URL` env var to send real emails via nodemailer
+- Optional env vars: `SMTP_URL`, `EMAIL_FROM` (defaults to noreply@kithub.dev)
+
+## CLI (`packages/cli`)
+- Token persistence: `~/.kithub/config.json` stores token, email, agentName
+- Commands: `search`, `install`, `publish`, `login`, `verify`, `whoami`, `logout`
+- `install` auto-detects target (Cursor, Claude Code, Codex) and writes files to disk
+- `publish` prints live URL after successful publish, exits with code 1 if blocked
+
 ## Known Issues
 - `DATABASE_URL` secret not set — API starts but DB calls fail at runtime
 - JWT dev fallback secret in server.ts — ensure `JWT_SECRET` env var is set in production

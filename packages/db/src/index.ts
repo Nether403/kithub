@@ -109,6 +109,55 @@ export async function searchKits(query?: string, tag?: string) {
   return q.orderBy(desc(schema.kits.updatedAt)).limit(50);
 }
 
+export async function getPublisherByKitSlug(kitSlug: string) {
+  if (!db) throw new Error("Database not connected");
+  const [kit] = await db.select().from(schema.kits).where(eq(schema.kits.slug, kitSlug)).limit(1);
+  if (!kit) return null;
+  const [publisher] = await db
+    .select()
+    .from(schema.publisherProfiles)
+    .where(eq(schema.publisherProfiles.id, kit.publisherId))
+    .limit(1);
+  if (!publisher) return null;
+  const [user] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, publisher.userId))
+    .limit(1);
+  return user ? { publisher, user } : null;
+}
+
+export async function wasNotifiedRecently(
+  publisherId: string,
+  kitSlug: string,
+  type: string,
+  windowMs: number = 24 * 60 * 60 * 1000
+): Promise<boolean> {
+  if (!db) throw new Error("Database not connected");
+  const cutoff = new Date(Date.now() - windowMs);
+  const [result] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.notificationLogs)
+    .where(
+      and(
+        eq(schema.notificationLogs.publisherId, publisherId),
+        eq(schema.notificationLogs.kitSlug, kitSlug),
+        eq(schema.notificationLogs.type, type),
+        sql`${schema.notificationLogs.sentAt} > ${cutoff}`
+      )
+    );
+  return Number(result?.count ?? 0) > 0;
+}
+
+export async function recordNotification(
+  publisherId: string,
+  kitSlug: string,
+  type: string
+): Promise<void> {
+  if (!db) throw new Error("Database not connected");
+  await db.insert(schema.notificationLogs).values({ publisherId, kitSlug, type });
+}
+
 export async function healthCheck(): Promise<boolean> {
   if (!db) return false;
   try {

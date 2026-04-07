@@ -97,3 +97,13 @@ export const learnings = pgTable("learnings", {
   payload: text("payload").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// ── Notification Logs ────────────────────────────────────────────
+
+export const notificationLogs = pgTable("notification_logs", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  publisherId: varchar("publisher_id").notNull().references(() => publisherProfiles.id),
+  kitSlug: varchar("kit_slug").notNull().references(() => kits.slug),
+  type: varchar("type", { length: 30 }).notNull(),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
