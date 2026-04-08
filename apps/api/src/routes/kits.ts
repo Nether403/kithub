@@ -32,9 +32,13 @@ import {
   getKitsByPublisherId, getEnrichedKitBySlug,
   getDailyInstalls, getInstallsByTarget,
 } from "@kithub/db";
-import { parseKitMd } from "@kithub/schema";
-import { scanKit } from "@kithub/schema/src/scanner";
-import { generateInstallPayload, isValidTarget, SUPPORTED_TARGETS } from "@kithub/schema/src/targets";
+import {
+  generateInstallPayload,
+  isValidTarget,
+  parseKitMd,
+  scanKit,
+  SUPPORTED_TARGETS,
+} from "@kithub/schema";
 import { requirePublisher, type JwtUser } from "../middleware/auth";
 import { notifyOnInstall, notifyOnLearning } from "../services/notifications";
 
