@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "tsc",
+    "build:deps": "npm --prefix ../.. run build --workspace=@kithub/db --workspace=@kithub/schema",
+    "build": "npm run build:deps && tsc",
     "dev": "ts-node-dev src/server.ts",
     "start": "node dist/server.js",
     "clean": "rm -rf dist",
-    "check-types": "tsc --noEmit",
+    "check-types": "npm run build:deps && tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
