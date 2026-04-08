@@ -1,11 +1,11 @@
 "use client";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import MarkdownPreview from "../components/MarkdownPreview";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-export default function PublishPage() {
+function PublishPageInner() {
   const searchParams = useSearchParams();
   const editSlug = searchParams.get("edit");
 
@@ -344,5 +344,13 @@ export default function PublishPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function PublishPage() {
+  return (
+    <Suspense fallback={<div className="container page-section" style={{ textAlign: "center", color: "var(--text-secondary)" }}>Loading…</div>}>
+      <PublishPageInner />
+    </Suspense>
   );
 }

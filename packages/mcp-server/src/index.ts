@@ -15,7 +15,7 @@ server.tool(
   "search_kits",
   "Search the SkillKitHub registry for agent workflow kits. Returns matching kits with metadata, scores, and install counts.",
   { query: z.string().optional().describe("Search term to find kits by title, tag, or intent") },
-  async ({ query }) => {
+  async ({ query }: { query?: string }) => {
     try {
       const { kits } = await client.searchKits(query);
       return {
@@ -36,7 +36,7 @@ server.tool(
   "get_kit_detail",
   "Get full details of a specific kit including its raw markdown, parsed frontmatter, security scan results, and learnings count.",
   { slug: z.string().describe("The kit slug (URL-safe identifier)") },
-  async ({ slug }) => {
+  async ({ slug }: { slug: string }) => {
     try {
       const kit = await client.getKit(slug);
       return {
@@ -61,7 +61,7 @@ server.tool(
     target: z.enum(["generic", "codex", "claude-code", "cursor", "mcp"])
       .describe("Target harness: generic, codex, claude-code, cursor, or mcp"),
   },
-  async ({ slug, target }) => {
+  async ({ slug, target }: { slug: string; target: "generic" | "codex" | "claude-code" | "cursor" | "mcp" }) => {
     try {
       const payload = await client.getInstallPayload(slug, target);
       return {
@@ -89,7 +89,7 @@ server.tool(
     runtime: z.string().optional().describe("Runtime version (e.g., Node 20, Python 3.12)"),
     platform: z.string().optional().describe("Agent platform (e.g., Cursor, Claude Code, Codex)"),
   },
-  async ({ slug, payload, os, model, runtime, platform }) => {
+  async ({ slug, payload, os, model, runtime, platform }: { slug: string; payload: string; os?: string; model?: string; runtime?: string; platform?: string; }) => {
     try {
       const result = await client.submitLearning(slug, {
         context: { os, model, runtime, platform },

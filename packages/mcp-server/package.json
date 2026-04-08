@@ -2,6 +2,7 @@
   "name": "@kithub/mcp-server",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "bin": {
     "kithub-mcp": "./dist/index.js"
   },
@@ -11,8 +12,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.6.0",
-    "@kithub/sdk": "*"
+    "@kithub/sdk": "*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@repo/typescript-config": "*",

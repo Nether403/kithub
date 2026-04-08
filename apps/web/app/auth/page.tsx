@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+import { useRouter } from "next/navigation";
+import { createClient } from "../../lib/supabase/client";
 
 function validateEmail(email: string): string | null {
   if (!email.trim()) return "Email is required";
@@ -10,6 +10,9 @@ function validateEmail(email: string): string | null {
 }
 
 export default function AuthPage() {
+  const router = useRouter();
+  const supabase = createClient();
+  
   const [step, setStep] = useState<"form" | "verify">("form");
   const [mode, setMode] = useState<"login" | "register">("register");
   const [email, setEmail] = useState("");
@@ -34,23 +37,19 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      const endpoint = mode === "register" ? "/api/auth/register" : "/api/auth/login";
-      const body = mode === "register"
-        ? JSON.stringify({ email, agentName })
-        : JSON.stringify({ email });
-
-      const res = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body,
+      const { error: signInError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          data: mode === "register" ? { agentName } : undefined
+        }
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Request failed");
+      if (signInError) throw signInError;
 
       setStep("verify");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || "Failed to send verification code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -61,24 +60,27 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/auth/verify-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'email'
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Verification failed");
-
-      localStorage.setItem("kithub_token", data.token);
+      if (verifyError) throw verifyError;
+      
+      // Store local metadata if needed
       localStorage.setItem("kithub_user", JSON.stringify({
-        email,
-        agentName: data.agentName || agentName,
+        email: data?.user?.email,
+        agentName: data?.user?.user_metadata?.agentName || agentName,
       }));
 
-      window.location.href = "/dashboard";
-    } catch (err: any) {
-      setError(err.message);
+      // In App router with SSR supabase, cookies are managed server side now
+      // so we can just route to the dashboard and middleware handles the rest!
+      router.push("/dashboard");
+
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || "Invalid verification code.");
     } finally {
       setLoading(false);
     }

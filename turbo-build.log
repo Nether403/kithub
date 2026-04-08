@@ -1,0 +1,76 @@
+ΓÇó turbo 2.9.4
+
+   ΓÇó Packages in scope: @kithub/cli, @kithub/db, @kithub/mcp-server, @kithub/schema, @kithub/sdk, @repo/eslint-config, @repo/typescript-config, @repo/ui, api, web
+   ΓÇó Running build in 10 packages
+   ΓÇó Remote caching disabled
+
+@kithub/schema:build: cache hit, replaying logs 152d4fb7d1d62e6e
+@kithub/schema:build: 
+@kithub/schema:build: > @kithub/schema@0.1.0 build
+@kithub/schema:build: > tsc
+@kithub/schema:build: 
+@kithub/db:build: cache hit, replaying logs fd2210f123632d83
+@kithub/db:build: 
+@kithub/db:build: > @kithub/db@0.1.0 build
+@kithub/db:build: > tsc
+@kithub/db:build: 
+web:build: cache miss, executing 385b528df943e349
+@kithub/sdk:build: cache hit, replaying logs fe2f096cdf78ce70
+@kithub/sdk:build: 
+@kithub/sdk:build: > @kithub/sdk@0.1.0 build
+@kithub/sdk:build: > tsc
+@kithub/sdk:build: 
+api:build: cache miss, executing 92000d063b03d485
+@kithub/cli:build: cache miss, executing ff8633562fcf0318
+@kithub/mcp-server:build: cache miss, executing d3053b657418ac3e
+web:build: 
+web:build: > web@0.1.0 build
+web:build: > next build
+web:build: 
+@kithub/cli:build: 
+@kithub/cli:build: > @kithub/cli@0.1.0 build
+@kithub/cli:build: > tsc
+@kithub/cli:build: 
+api:build: 
+api:build: > api@0.1.0 build
+api:build: > tsc
+api:build: 
+@kithub/mcp-server:build: 
+@kithub/mcp-server:build: > @kithub/mcp-server@0.1.0 build
+@kithub/mcp-server:build: > tsc
+@kithub/mcp-server:build: 
+web:build: ΓÜá `eslint` configuration in next.config.js is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+web:build: ΓÜá Invalid next.config.js options detected: 
+web:build: ΓÜá     Unrecognized key(s) in object: 'eslint'
+web:build: ΓÜá See more info here: https://nextjs.org/docs/messages/invalid-next-config
+web:build: Γû▓ Next.js 16.2.0 (Turbopack)
+web:build: - Environments: .env.local
+web:build: 
+web:build: ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+web:build:   Creating an optimized production build ...
+@kithub/mcp-server:build: src/index.ts(1,27): error TS2307: Cannot find module '@modelcontextprotocol/sdk/server/mcp.js' or its corresponding type declarations.
+@kithub/mcp-server:build: src/index.ts(18,12): error TS7031: Binding element 'query' implicitly has an 'any' type.
+@kithub/mcp-server:build: src/index.ts(39,12): error TS7031: Binding element 'slug' implicitly has an 'any' type.
+@kithub/mcp-server:build: src/index.ts(64,12): error TS7031: Binding element 'slug' implicitly has an 'any' type.
+@kithub/mcp-server:build: src/index.ts(64,18): error TS7031: Binding element 'target' implicitly has an 'any' type.
+@kithub/mcp-server:build: src/index.ts(92,12): error TS7031: Binding element 'slug' implicitly has an 'any' type.
+@kithub/mcp-server:build: src/index.ts(92,18): error TS7031: Binding element 'payload' implicitly has an 'any' type.
+@kithub/mcp-server:build: src/index.ts(92,27): error TS7031: Binding element 'os' implicitly has an 'any' type.
+@kithub/mcp-server:build: src/index.ts(92,31): error TS7031: Binding element 'model' implicitly has an 'any' type.
+@kithub/mcp-server:build: src/index.ts(92,38): error TS7031: Binding element 'runtime' implicitly has an 'any' type.
+@kithub/mcp-server:build: src/index.ts(92,47): error TS7031: Binding element 'platform' implicitly has an 'any' type.
+@kithub/mcp-server:build: npm error Lifecycle script `build` failed with error:
+@kithub/mcp-server:build: npm error code 2
+@kithub/mcp-server:build: npm error path F:\Creating a better Journey\kithub\packages\mcp-server
+@kithub/mcp-server:build: npm error workspace @kithub/mcp-server@0.1.0
+@kithub/mcp-server:build: npm error location F:\Creating a better Journey\kithub\packages\mcp-server
+@kithub/mcp-server:build: npm error command failed
+@kithub/mcp-server:build: npm error command C:\WINDOWS\system32\cmd.exe /d /s /c tsc
+ ERROR  @kithub/mcp-server#build: command (F:\Creating a better Journey\kithub\packages\mcp-server) C:\Program Files\nodejs\npm.cmd run build exited (2)
+
+ Tasks:    3 successful, 7 total
+Cached:    3 cached, 7 total
+  Time:    10.551s 
+Failed:    @kithub/mcp-server#build
+
+ ERROR  run failed: command  exited (2)

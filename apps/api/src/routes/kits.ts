@@ -25,12 +25,12 @@ const SearchQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
 });
 import {
-  db, schema, eq, desc, ilike, sql,
-  getKitBySlug, getLatestRelease, getKitTags,
-  getInstallCount, getLearningsCount, getLatestScan,
-  searchKits, searchKitsPaginated, getTrendingKits, getAllReleases,
+  db, schema, eq, desc, sql,
+  getKitBySlug, getLatestRelease, getLatestScan,
+  getLearningsCount, getInstallCount,
+  searchKitsPaginated, getTrendingKits, getAllReleases,
+  getKitsByPublisherId, getEnrichedKitBySlug,
   getDailyInstalls, getInstallsByTarget,
-  getPublisherNameMap,
 } from "@kithub/db";
 import { parseKitMd } from "@kithub/schema";
 import { scanKit } from "@kithub/schema/src/scanner";
@@ -96,35 +96,8 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const jwtUser = request.user as JwtUser;
-    const myKits = await db.select().from(schema.kits)
-      .where(
-        eq(schema.kits.publisherId, jwtUser.publisherId!)
-      )
-      .orderBy(desc(schema.kits.updatedAt));
-
-    const publishedKits = myKits.filter(k => !k.unpublishedAt);
-
-    const enriched = await Promise.all(
-      publishedKits.map(async (kit) => {
-        const release = await getLatestRelease(kit.slug);
-        const tags = await getKitTags(kit.slug);
-        const installs = await getInstallCount(kit.slug);
-        const scan = release ? await getLatestScan(release.id) : null;
-
-        return {
-          slug: kit.slug,
-          title: kit.title,
-          summary: kit.summary,
-          version: release?.version ?? "0.0.0",
-          installs,
-          tags: tags.map(t => t.tag),
-          score: scan?.score ?? null,
-          updatedAt: kit.updatedAt,
-        };
-      })
-    );
-
-    return { kits: enriched, total: enriched.length };
+    const result = await getKitsByPublisherId(jwtUser.publisherId!);
+    return { kits: result.kits, total: result.total };
   });
   fastify.get("/:slug", async (request, reply) => {
     const { slug } = request.params as { slug: string };
@@ -136,46 +109,35 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const kit = await getKitBySlug(slug);
-    if (!kit) {
+    const enriched = await getEnrichedKitBySlug(slug);
+    if (!enriched) {
       return reply.code(404).send({
         error: "Not Found",
         message: `Kit "${slug}" not found.`,
         statusCode: 404,
       });
     }
-    if (kit.unpublishedAt) {
-      return reply.code(404).send({
-        error: "Not Found",
-        message: `Kit "${slug}" has been unpublished.`,
-        statusCode: 404,
-      });
-    }
 
+    // Need rawMarkdown and parsedFrontmatter from the release record specifically
     const release = await getLatestRelease(slug);
-    const tags = await getKitTags(slug);
-    const installs = await getInstallCount(slug);
     const learnings = await getLearningsCount(slug);
     const scan = release ? await getLatestScan(release.id) : null;
-    const publisherMap = await getPublisherNameMap();
-    const publisherName = publisherMap[kit.publisherId] ?? null;
 
     return {
-      slug: kit.slug,
-      title: kit.title,
-      summary: kit.summary,
-      publisherName,
-      version: release?.version ?? "0.0.0",
+      slug: enriched.slug,
+      title: enriched.title,
+      summary: enriched.summary,
+      publisherName: enriched.publisherName,
+      version: enriched.version,
       rawMarkdown: release?.rawMarkdown ?? "",
       parsedFrontmatter: release?.parsedFrontmatter,
       conformanceLevel: release?.conformanceLevel ?? "standard",
-      tags: tags.map(t => t.tag),
-      installs,
+      tags: enriched.tags,
+      installs: enriched.installs,
       learningsCount: learnings,
       scan: scan ? { score: scan.score, status: scan.status, findings: scan.findings } : null,
-      resourceBindings: kit.resourceBindings,
-      createdAt: kit.createdAt,
-      updatedAt: kit.updatedAt,
+      createdAt: enriched.createdAt,
+      updatedAt: enriched.updatedAt,
     };
   });
 

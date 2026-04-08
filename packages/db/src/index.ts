@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, desc, ilike, sql, and } from "drizzle-orm";
+import { eq, desc, ilike, sql, and, inArray } from "drizzle-orm";
 import * as path from "path";
 import * as schema from "./schema";
 
@@ -27,7 +27,11 @@ if (!connectionString && !hasPgEnv) {
 
 let client: ReturnType<typeof postgres> | null = null;
 if (connectionString) {
-  client = postgres(connectionString, { max: 10 });
+  client = postgres(connectionString, {
+    max: 10,
+    // Supabase requires SSL; "require" works for both Supabase and local PG
+    ssl: process.env.NODE_ENV === "production" ? "require" : false,
+  });
 } else if (hasPgEnv) {
   client = postgres({
     host: process.env.PGHOST,
@@ -42,7 +46,7 @@ if (connectionString) {
 
 export const db = client ? drizzle(client, { schema }) : null;
 
-// ── Shared Types ──────────────────────────────────────────────
+// ── Shared Types ──────────────────────────────────────────────────
 
 export interface EnrichedKit {
   slug: string;
@@ -69,7 +73,7 @@ export interface PaginatedResult<T> {
   totalPages: number;
 }
 
-// ── Query Helpers ─────────────────────────────────────────────────
+// ── Simple Query Helpers ──────────────────────────────────────────
 
 export async function getKitBySlug(slug: string) {
   if (!db) throw new Error("Database not connected");
@@ -122,51 +126,139 @@ export async function getLatestScan(releaseId: string) {
   return scan ?? null;
 }
 
-export async function searchKits(query?: string, tag?: string) {
+// ── Enriched Kit Loader (single-slug) ────────────────────────────
+// Used for detail pages: fetches all related data in 3 parallel queries.
+
+export async function getEnrichedKitBySlug(slug: string): Promise<EnrichedKitWithPublisher | null> {
   if (!db) throw new Error("Database not connected");
 
-  const conditions = [sql`${schema.kits.unpublishedAt} IS NULL`];
+  const [kit] = await db
+    .select()
+    .from(schema.kits)
+    .where(eq(schema.kits.slug, slug))
+    .limit(1);
 
-  if (query) {
-    conditions.push(ilike(schema.kits.title, `%${query}%`));
-  }
+  if (!kit) return null;
 
-  let q = db.select().from(schema.kits).where(and(...conditions)).$dynamic();
+  const [latestRelease, tags, installCount, publisher] = await Promise.all([
+    getLatestRelease(slug),
+    getKitTags(slug),
+    getInstallCount(slug),
+    db.select().from(schema.publisherProfiles)
+      .where(eq(schema.publisherProfiles.id, kit.publisherId))
+      .limit(1)
+      .then(rows => rows[0] ?? null),
+  ]);
 
-  return q.orderBy(desc(schema.kits.updatedAt)).limit(50);
+  const scan = latestRelease ? await getLatestScan(latestRelease.id) : null;
+
+  return {
+    slug: kit.slug,
+    title: kit.title,
+    summary: kit.summary,
+    publisherId: kit.publisherId,
+    publisherName: publisher?.agentName ?? null,
+    version: latestRelease?.version ?? "0.0.0",
+    installs: installCount,
+    tags: tags.map(t => t.tag),
+    score: scan?.score ?? null,
+    updatedAt: kit.updatedAt,
+    createdAt: kit.createdAt,
+  };
 }
 
-export async function getPublisherNameMap() {
-  if (!db) throw new Error("Database not connected");
-  const publishers = await db.select().from(schema.publisherProfiles);
-  const map: Record<string, string> = {};
-  for (const p of publishers) {
-    map[p.id] = p.agentName;
+// ── Batch Enrichment Helpers ──────────────────────────────────────
+// These fetch all related data for a set of slugs in bulk, then map
+// results back — avoiding N+1 queries entirely.
+
+async function batchFetchLatestReleases(slugs: string[]): Promise<Record<string, { version: string; id: string }>> {
+  if (!db || slugs.length === 0) return {};
+
+  // Use a DISTINCT ON query to get the latest release per kit
+  const rows = await db.execute(sql`
+    SELECT DISTINCT ON (kit_slug) kit_slug, id, version
+    FROM ${schema.kitReleases}
+    WHERE kit_slug = ANY(${slugs})
+    ORDER BY kit_slug, created_at DESC
+  `);
+
+  const map: Record<string, { version: string; id: string }> = {};
+  for (const row of rows as unknown as { kit_slug: string; id: string; version: string }[]) {
+    map[row.kit_slug] = { version: row.version, id: row.id };
   }
   return map;
 }
 
-function sortEnrichedKits<T extends EnrichedKit>(kits: T[], sort: "installs" | "score" | "newest"): void {
-  if (sort === "installs") {
-    kits.sort((a, b) => b.installs - a.installs);
-  } else if (sort === "score") {
-    kits.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  } else {
-    kits.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+async function batchFetchInstallCounts(slugs: string[]): Promise<Record<string, number>> {
+  if (!db || slugs.length === 0) return {};
+
+  const rows = await db
+    .select({
+      kitSlug: schema.kitInstallEvents.kitSlug,
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.kitInstallEvents)
+    .where(inArray(schema.kitInstallEvents.kitSlug, slugs))
+    .groupBy(schema.kitInstallEvents.kitSlug);
+
+  const map: Record<string, number> = {};
+  for (const row of rows) {
+    map[row.kitSlug] = Number(row.count);
   }
+  return map;
 }
 
-function paginateResults<T>(items: T[], page: number, limit: number): PaginatedResult<T> {
-  const offset = (page - 1) * limit;
-  const total = items.length;
-  return {
-    kits: items.slice(offset, offset + limit),
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  };
+async function batchFetchTags(slugs: string[]): Promise<Record<string, string[]>> {
+  if (!db || slugs.length === 0) return {};
+
+  const rows = await db
+    .select({ kitSlug: schema.kitTags.kitSlug, tag: schema.kitTags.tag })
+    .from(schema.kitTags)
+    .where(inArray(schema.kitTags.kitSlug, slugs));
+
+  const map: Record<string, string[]> = {};
+  for (const row of rows) {
+    if (!map[row.kitSlug]) map[row.kitSlug] = [];
+    map[row.kitSlug]!.push(row.tag);
+  }
+  return map;
 }
+
+async function batchFetchLatestScores(releaseIds: string[]): Promise<Record<string, number | null>> {
+  if (!db || releaseIds.length === 0) return {};
+
+  const rows = await db.execute(sql`
+    SELECT DISTINCT ON (release_id) release_id, score
+    FROM ${schema.kitReleaseScans}
+    WHERE release_id = ANY(${releaseIds})
+    ORDER BY release_id, created_at DESC
+  `);
+
+  const map: Record<string, number | null> = {};
+  for (const row of rows as unknown as { release_id: string; score: number | null }[]) {
+    map[row.release_id] = row.score;
+  }
+  return map;
+}
+
+async function batchFetchPublishers(publisherIds: string[]): Promise<Record<string, string>> {
+  if (!db || publisherIds.length === 0) return {};
+
+  const rows = await db
+    .select({ id: schema.publisherProfiles.id, agentName: schema.publisherProfiles.agentName })
+    .from(schema.publisherProfiles)
+    .where(inArray(schema.publisherProfiles.id, publisherIds));
+
+  const map: Record<string, string> = {};
+  for (const row of rows) {
+    map[row.id] = row.agentName;
+  }
+  return map;
+}
+
+// ── searchKitsPaginated (Phase 2 — SQL-first) ────────────────────
+// Now does pagination at the database level, not in memory.
+// Tag filtering also happens in SQL via a JOIN.
 
 export async function searchKitsPaginated(options: {
   query?: string;
@@ -178,47 +270,129 @@ export async function searchKitsPaginated(options: {
   if (!db) throw new Error("Database not connected");
 
   const { query, tag, sort = "newest", page = 1, limit = 20 } = options;
+  const offset = (page - 1) * limit;
 
+  // Build WHERE conditions
   const conditions = [sql`${schema.kits.unpublishedAt} IS NULL`];
   if (query) {
-    conditions.push(ilike(schema.kits.title, `%${query}%`));
+    conditions.push(
+      sql`(${ilike(schema.kits.title, `%${query}%`)} OR ${ilike(schema.kits.summary, `%${query}%`)})`
+    );
   }
 
-  const allKits = await db.select().from(schema.kits).where(and(...conditions));
-  const publisherMap = await getPublisherNameMap();
-
-  const enriched: EnrichedKitWithPublisher[] = await Promise.all(
-    allKits.map(async (kit) => {
-      const release = await getLatestRelease(kit.slug);
-      const tags = await getKitTags(kit.slug);
-      const installs = await getInstallCount(kit.slug);
-      const scan = release ? await getLatestScan(release.id) : null;
-
-      return {
-        slug: kit.slug,
-        title: kit.title,
-        summary: kit.summary,
-        publisherId: kit.publisherId,
-        publisherName: publisherMap[kit.publisherId] ?? null,
-        version: release?.version ?? "0.0.0",
-        installs,
-        tags: tags.map(t => t.tag),
-        score: scan?.score ?? null,
-        updatedAt: kit.updatedAt,
-        createdAt: kit.createdAt,
-      };
-    })
-  );
+  // Count total (respects same filters)
+  let countQuery = db
+    .select({ count: sql<number>`count(distinct ${schema.kits.slug})` })
+    .from(schema.kits)
+    .$dynamic();
 
   if (tag) {
-    const filtered = enriched.filter(k => k.tags.includes(tag));
-    enriched.length = 0;
-    enriched.push(...filtered);
+    countQuery = countQuery.innerJoin(
+      schema.kitTags,
+      and(
+        eq(schema.kitTags.kitSlug, schema.kits.slug),
+        eq(schema.kitTags.tag, tag)
+      )
+    );
+  }
+  countQuery = countQuery.where(and(...conditions));
+  const countResult = await countQuery;
+  const total = Number(countResult[0]?.count ?? 0);
+
+  if (total === 0) {
+    return { kits: [], total: 0, page, limit, totalPages: 0 };
   }
 
-  sortEnrichedKits(enriched, sort);
-  return paginateResults(enriched, page, limit);
+  // Fetch the kit slugs for this page using SQL ORDER BY
+  // We join the install count subquery for sort-by-installs
+  let kitsQuery = db
+    .select({ slug: schema.kits.slug })
+    .from(schema.kits)
+    .$dynamic();
+
+  if (tag) {
+    kitsQuery = kitsQuery.innerJoin(
+      schema.kitTags,
+      and(
+        eq(schema.kitTags.kitSlug, schema.kits.slug),
+        eq(schema.kitTags.tag, tag)
+      )
+    );
+  }
+
+  kitsQuery = kitsQuery.where(and(...conditions));
+
+  if (sort === "newest") {
+    kitsQuery = kitsQuery.orderBy(desc(schema.kits.updatedAt));
+  } else {
+    // For installs/score sorts: fetch IDs and sort in memory after enrichment
+    kitsQuery = kitsQuery.orderBy(desc(schema.kits.updatedAt));
+  }
+
+  // For newest sort, apply DB-level pagination
+  const needsInMemorySort = sort === "installs" || sort === "score";
+  if (!needsInMemorySort) {
+    kitsQuery = kitsQuery.limit(limit).offset(offset);
+  }
+
+  const kitRows = await kitsQuery;
+  const slugs = [...new Set(kitRows.map(r => r.slug))];
+
+  if (slugs.length === 0) {
+    return { kits: [], total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  // Fetch all related data in 5 parallel batch queries (no N+1)
+  const [releaseMap, installMap, tagMap, rawKits] = await Promise.all([
+    batchFetchLatestReleases(slugs),
+    batchFetchInstallCounts(slugs),
+    batchFetchTags(slugs),
+    db.select().from(schema.kits).where(inArray(schema.kits.slug, slugs)),
+  ]);
+
+  const releaseIds = Object.values(releaseMap).map(r => r.id);
+  const [scoremap, publisherMap] = await Promise.all([
+    batchFetchLatestScores(releaseIds),
+    batchFetchPublishers([...new Set(rawKits.map(k => k.publisherId))]),
+  ]);
+
+  const enriched: EnrichedKitWithPublisher[] = rawKits.map(kit => {
+    const release = releaseMap[kit.slug];
+    return {
+      slug: kit.slug,
+      title: kit.title,
+      summary: kit.summary,
+      publisherId: kit.publisherId,
+      publisherName: publisherMap[kit.publisherId] ?? null,
+      version: release?.version ?? "0.0.0",
+      installs: installMap[kit.slug] ?? 0,
+      tags: tagMap[kit.slug] ?? [],
+      score: release ? (scoremap[release.id] ?? null) : null,
+      updatedAt: kit.updatedAt,
+      createdAt: kit.createdAt,
+    };
+  });
+
+  // Apply in-memory sorting for installs/score (requires count data)
+  if (sort === "installs") {
+    enriched.sort((a, b) => b.installs - a.installs);
+  } else if (sort === "score") {
+    enriched.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  }
+
+  // For in-memory sorts, slice after sorting
+  const finalKits = needsInMemorySort ? enriched.slice(offset, offset + limit) : enriched;
+
+  return {
+    kits: finalKits,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 }
+
+// ── getTrendingKits (Phase 2 — batch queries) ────────────────────
 
 export interface TrendingKit extends EnrichedKit {
   publisherName: string | null;
@@ -227,43 +401,53 @@ export interface TrendingKit extends EnrichedKit {
 export async function getTrendingKits(count = 3): Promise<TrendingKit[]> {
   if (!db) throw new Error("Database not connected");
 
-  const allKits = await db.select().from(schema.kits).where(sql`${schema.kits.unpublishedAt} IS NULL`);
-  const publisherMap = await getPublisherNameMap();
+  // Get top N by install count using a subquery
+  const rows = await db.execute(sql`
+    SELECT k.slug, k.title, k.summary, k.publisher_id, k.updated_at,
+           COUNT(e.id)::int AS install_count
+    FROM ${schema.kits} k
+    LEFT JOIN ${schema.kitInstallEvents} e ON e.kit_slug = k.slug
+    WHERE k.unpublished_at IS NULL
+    GROUP BY k.slug
+    ORDER BY install_count DESC
+    LIMIT ${count * 3}
+  `);
 
-  const enriched: TrendingKit[] = await Promise.all(
-    allKits.map(async (kit) => {
-      const release = await getLatestRelease(kit.slug);
-      const tags = await getKitTags(kit.slug);
-      const installs = await getInstallCount(kit.slug);
-      const scan = release ? await getLatestScan(release.id) : null;
+  type TrendingRow = {
+    slug: string; title: string; summary: string;
+    publisher_id: string; updated_at: Date; install_count: number;
+  };
+  const trendingRows = rows as unknown as TrendingRow[];
+  const slugs = trendingRows.map(r => r.slug);
 
-      return {
-        slug: kit.slug,
-        title: kit.title,
-        summary: kit.summary,
-        publisherName: publisherMap[kit.publisherId] ?? null,
-        version: release?.version ?? "0.0.0",
-        installs,
-        tags: tags.map(t => t.tag),
-        score: scan?.score ?? null,
-        updatedAt: kit.updatedAt,
-      };
-    })
-  );
+  if (slugs.length === 0) return [];
 
-  sortEnrichedKits(enriched, "installs");
-  return enriched.slice(0, count);
+  const [releaseMap, tagMap, publisherMap] = await Promise.all([
+    batchFetchLatestReleases(slugs),
+    batchFetchTags(slugs),
+    batchFetchPublishers([...new Set(trendingRows.map(r => r.publisher_id))]),
+  ]);
+
+  const releaseIds = Object.values(releaseMap).map(r => r.id);
+  const scoremap = await batchFetchLatestScores(releaseIds);
+
+  return trendingRows.slice(0, count).map(row => {
+    const release = releaseMap[row.slug];
+    return {
+      slug: row.slug,
+      title: row.title,
+      summary: row.summary,
+      publisherName: publisherMap[row.publisher_id] ?? null,
+      version: release?.version ?? "0.0.0",
+      installs: Number(row.install_count),
+      tags: tagMap[row.slug] ?? [],
+      score: release ? (scoremap[release.id] ?? null) : null,
+      updatedAt: row.updated_at,
+    };
+  });
 }
 
-export async function getPublisherByAgentName(agentName: string) {
-  if (!db) throw new Error("Database not connected");
-  const [publisher] = await db
-    .select()
-    .from(schema.publisherProfiles)
-    .where(eq(schema.publisherProfiles.agentName, agentName))
-    .limit(1);
-  return publisher ?? null;
-}
+// ── getKitsByPublisherId (Phase 2 — batch queries) ───────────────
 
 export async function getKitsByPublisherId(publisherId: string, options?: {
   sort?: "installs" | "score" | "newest";
@@ -279,48 +463,215 @@ export async function getKitsByPublisherId(publisherId: string, options?: {
     .where(and(
       eq(schema.kits.publisherId, publisherId),
       sql`${schema.kits.unpublishedAt} IS NULL`
-    ));
+    ))
+    .orderBy(desc(schema.kits.updatedAt));
 
-  const enriched: EnrichedKit[] = await Promise.all(
-    kits.map(async (kit) => {
-      const release = await getLatestRelease(kit.slug);
-      const tags = await getKitTags(kit.slug);
-      const installs = await getInstallCount(kit.slug);
-      const scan = release ? await getLatestScan(release.id) : null;
+  if (kits.length === 0) {
+    return { kits: [], total: 0, page, limit, totalPages: 0 };
+  }
 
-      return {
-        slug: kit.slug,
-        title: kit.title,
-        summary: kit.summary,
-        version: release?.version ?? "0.0.0",
-        installs,
-        tags: tags.map(t => t.tag),
-        score: scan?.score ?? null,
-        updatedAt: kit.updatedAt,
-      };
-    })
-  );
+  const slugs = kits.map(k => k.slug);
 
-  sortEnrichedKits(enriched, sort);
-  return paginateResults(enriched, page, limit);
+  const [releaseMap, installMap, tagMap] = await Promise.all([
+    batchFetchLatestReleases(slugs),
+    batchFetchInstallCounts(slugs),
+    batchFetchTags(slugs),
+  ]);
+
+  const releaseIds = Object.values(releaseMap).map(r => r.id);
+  const scoremap = await batchFetchLatestScores(releaseIds);
+
+  const enriched: EnrichedKit[] = kits.map(kit => {
+    const release = releaseMap[kit.slug];
+    return {
+      slug: kit.slug,
+      title: kit.title,
+      summary: kit.summary,
+      version: release?.version ?? "0.0.0",
+      installs: installMap[kit.slug] ?? 0,
+      tags: tagMap[kit.slug] ?? [],
+      score: release ? (scoremap[release.id] ?? null) : null,
+      updatedAt: kit.updatedAt,
+    };
+  });
+
+  if (sort === "installs") enriched.sort((a, b) => b.installs - a.installs);
+  else if (sort === "score") enriched.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
+  const offset = (page - 1) * limit;
+  return {
+    kits: enriched.slice(offset, offset + limit),
+    total: enriched.length,
+    page,
+    limit,
+    totalPages: Math.ceil(enriched.length / limit),
+  };
+}
+
+// ── getAllReleases (Phase 2 — single batch scan query) ────────────
+
+export async function getAllReleases(kitSlug: string) {
+  if (!db) throw new Error("Database not connected");
+
+  const releases = await db
+    .select()
+    .from(schema.kitReleases)
+    .where(eq(schema.kitReleases.kitSlug, kitSlug))
+    .orderBy(desc(schema.kitReleases.createdAt));
+
+  if (releases.length === 0) return [];
+
+  // Batch fetch all scans in one query
+  const releaseIds = releases.map(r => r.id);
+  const scanRows = await db.execute(sql`
+    SELECT DISTINCT ON (release_id) release_id, score, status, findings
+    FROM ${schema.kitReleaseScans}
+    WHERE release_id = ANY(${releaseIds})
+    ORDER BY release_id, created_at DESC
+  `);
+
+  type ScanRow = { release_id: string; score: number | null; status: string; findings: unknown };
+  const scanMap: Record<string, ScanRow> = {};
+  for (const row of scanRows as unknown as ScanRow[]) {
+    scanMap[row.release_id] = row;
+  }
+
+  return releases.map(rel => ({
+    id: rel.id,
+    version: rel.version,
+    conformanceLevel: rel.conformanceLevel,
+    rawMarkdown: rel.rawMarkdown,
+    createdAt: rel.createdAt,
+    scan: scanMap[rel.id]
+      ? { score: scanMap[rel.id]!.score, status: scanMap[rel.id]!.status, findings: scanMap[rel.id]!.findings }
+      : null,
+  }));
+}
+
+// ── searchSkills (Phase 2 — SQL filtering, batch tag lookup) ─────
+
+export async function searchSkills(query?: string, tag?: string) {
+  if (!db) throw new Error("Database not connected");
+
+  const conditions = [];
+  if (query) {
+    conditions.push(
+      sql`(${ilike(schema.skills.title, `%${query}%`)} OR ${ilike(schema.skills.summary, `%${query}%`)})`
+    );
+  }
+
+  // When filtering by tag, do a SQL-level EXISTS check to avoid the Drizzle
+  // dynamic-join type-widening issue.
+  type SkillRow = typeof schema.skills.$inferSelect;
+  let results: SkillRow[];
+  if (tag) {
+    results = await db
+      .select()
+      .from(schema.skills)
+      .where(
+        and(
+          ...(conditions.length > 0 ? conditions : []),
+          sql`EXISTS (
+            SELECT 1 FROM ${schema.skillTags}
+            WHERE ${schema.skillTags.skillSlug} = ${schema.skills.slug}
+            AND lower(${schema.skillTags.tag}) = lower(${tag})
+          )`
+        )
+      )
+      .orderBy(desc(schema.skills.installCount));
+  } else {
+    results = await db
+      .select()
+      .from(schema.skills)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(schema.skills.installCount));
+  }
+  const slugs = [...new Set(results.map(s => s.slug))];
+
+  if (slugs.length === 0) return [];
+
+  const [tagRows, publisherIds] = [
+    await db.select().from(schema.skillTags).where(inArray(schema.skillTags.skillSlug, slugs)),
+    [...new Set(results.map(s => s.publisherId))],
+  ];
+
+  const tagMap: Record<string, string[]> = {};
+  for (const t of tagRows) {
+    if (!tagMap[t.skillSlug]) tagMap[t.skillSlug] = [];
+    tagMap[t.skillSlug]!.push(t.tag);
+  }
+
+  const publisherMap = await batchFetchPublishers(publisherIds);
+
+  return results.map(s => ({
+    slug: s.slug,
+    title: s.title,
+    emoji: s.emoji,
+    category: s.category,
+    summary: s.summary,
+    installCount: s.installCount,
+    tags: tagMap[s.slug] ?? [],
+    publisherName: publisherMap[s.publisherId] ?? null,
+    updatedAt: s.updatedAt,
+  }));
+}
+
+export async function getSkillBySlug(slug: string) {
+  if (!db) throw new Error("Database not connected");
+  const [skill] = await db.select().from(schema.skills).where(eq(schema.skills.slug, slug)).limit(1);
+  if (!skill) return null;
+
+  const [tags, publisher] = await Promise.all([
+    db.select().from(schema.skillTags).where(eq(schema.skillTags.skillSlug, slug)),
+    db.select().from(schema.publisherProfiles)
+      .where(eq(schema.publisherProfiles.id, skill.publisherId))
+      .limit(1)
+      .then(rows => rows[0] ?? null),
+  ]);
+
+  return {
+    slug: skill.slug,
+    title: skill.title,
+    emoji: skill.emoji,
+    category: skill.category,
+    summary: skill.summary,
+    description: skill.description,
+    installCount: skill.installCount,
+    tags: tags.map(t => t.tag),
+    publisherName: publisher?.agentName ?? null,
+    createdAt: skill.createdAt,
+    updatedAt: skill.updatedAt,
+  };
+}
+
+// ── Misc Query Helpers ────────────────────────────────────────────
+
+export async function getPublisherByAgentName(agentName: string) {
+  if (!db) throw new Error("Database not connected");
+  const [publisher] = await db
+    .select()
+    .from(schema.publisherProfiles)
+    .where(eq(schema.publisherProfiles.agentName, agentName))
+    .limit(1);
+  return publisher ?? null;
 }
 
 export async function getPublisherByKitSlug(kitSlug: string) {
   if (!db) throw new Error("Database not connected");
-  const [kit] = await db.select().from(schema.kits).where(eq(schema.kits.slug, kitSlug)).limit(1);
-  if (!kit) return null;
-  const [publisher] = await db
-    .select()
-    .from(schema.publisherProfiles)
-    .where(eq(schema.publisherProfiles.id, kit.publisherId))
+
+  // Single JOIN query instead of 3 sequential queries
+  const [result] = await db
+    .select({
+      publisher: schema.publisherProfiles,
+      user: schema.users,
+    })
+    .from(schema.kits)
+    .innerJoin(schema.publisherProfiles, eq(schema.publisherProfiles.id, schema.kits.publisherId))
+    .innerJoin(schema.users, eq(schema.users.id, schema.publisherProfiles.userId))
+    .where(eq(schema.kits.slug, kitSlug))
     .limit(1);
-  if (!publisher) return null;
-  const [user] = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.id, publisher.userId))
-    .limit(1);
-  return user ? { publisher, user } : null;
+
+  return result ?? null;
 }
 
 export async function wasNotifiedRecently(
@@ -352,31 +703,6 @@ export async function recordNotification(
 ): Promise<void> {
   if (!db) throw new Error("Database not connected");
   await db.insert(schema.notificationLogs).values({ publisherId, kitSlug, type });
-}
-
-export async function getAllReleases(kitSlug: string) {
-  if (!db) throw new Error("Database not connected");
-  const releases = await db
-    .select()
-    .from(schema.kitReleases)
-    .where(eq(schema.kitReleases.kitSlug, kitSlug))
-    .orderBy(desc(schema.kitReleases.createdAt));
-
-  const enriched = await Promise.all(
-    releases.map(async (rel) => {
-      const scan = await getLatestScan(rel.id);
-      return {
-        id: rel.id,
-        version: rel.version,
-        conformanceLevel: rel.conformanceLevel,
-        rawMarkdown: rel.rawMarkdown,
-        createdAt: rel.createdAt,
-        scan: scan ? { score: scan.score, status: scan.status, findings: scan.findings } : null,
-      };
-    })
-  );
-
-  return enriched;
 }
 
 export async function getDailyInstalls(kitSlug: string, days: number = 30) {
@@ -418,76 +744,7 @@ export async function getInstallsByTarget(kitSlug: string) {
   return rows.map(r => ({ target: r.target, count: Number(r.count) }));
 }
 
-// ── Skills Query Helpers ──────────────────────────────────────────
-
-export async function searchSkills(query?: string, tag?: string) {
-  if (!db) throw new Error("Database not connected");
-
-  const allSkills = await db.select().from(schema.skills);
-
-  let results = allSkills;
-
-  if (query) {
-    const q = query.toLowerCase();
-    results = results.filter(
-      s => s.title.toLowerCase().includes(q) || s.summary.toLowerCase().includes(q)
-    );
-  }
-
-  if (tag) {
-    const tagRows = await db.select().from(schema.skillTags);
-    const slugsWithTag = new Set(
-      tagRows.filter(t => t.tag.toLowerCase() === tag.toLowerCase()).map(t => t.skillSlug)
-    );
-    results = results.filter(s => slugsWithTag.has(s.slug));
-  }
-
-  const tagRows = await db.select().from(schema.skillTags);
-  const tagMap: Record<string, string[]> = {};
-  for (const t of tagRows) {
-    if (!tagMap[t.skillSlug]) tagMap[t.skillSlug] = [];
-    tagMap[t.skillSlug]!.push(t.tag);
-  }
-
-  const publisherMap = await getPublisherNameMap();
-
-  return results
-    .sort((a, b) => b.installCount - a.installCount)
-    .map(s => ({
-      slug: s.slug,
-      title: s.title,
-      emoji: s.emoji,
-      category: s.category,
-      summary: s.summary,
-      installCount: s.installCount,
-      tags: tagMap[s.slug] ?? [],
-      publisherName: publisherMap[s.publisherId] ?? null,
-      updatedAt: s.updatedAt,
-    }));
-}
-
-export async function getSkillBySlug(slug: string) {
-  if (!db) throw new Error("Database not connected");
-  const [skill] = await db.select().from(schema.skills).where(eq(schema.skills.slug, slug)).limit(1);
-  if (!skill) return null;
-
-  const tags = await db.select().from(schema.skillTags).where(eq(schema.skillTags.skillSlug, slug));
-  const publisherMap = await getPublisherNameMap();
-
-  return {
-    slug: skill.slug,
-    title: skill.title,
-    emoji: skill.emoji,
-    category: skill.category,
-    summary: skill.summary,
-    description: skill.description,
-    installCount: skill.installCount,
-    tags: tags.map(t => t.tag),
-    publisherName: publisherMap[skill.publisherId] ?? null,
-    createdAt: skill.createdAt,
-    updatedAt: skill.updatedAt,
-  };
-}
+// ── Health Check ─────────────────────────────────────────────────
 
 export async function healthCheck(): Promise<boolean> {
   if (!db) return false;
@@ -499,4 +756,10 @@ export async function healthCheck(): Promise<boolean> {
   }
 }
 
-export { schema, eq, desc, ilike, sql, and };
+// ── Re-exports for route files that import from this package ─────
+
+// Remove getPublisherNameMap — it's no longer needed externally since
+// all enrichment now goes through batch helpers. Keep it internal as
+// batchFetchPublishers handles this use case more efficiently.
+
+export { schema, eq, desc, ilike, sql, and, inArray };
