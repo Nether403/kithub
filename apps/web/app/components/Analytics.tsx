@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+import { fetchWithSupabaseAuth } from "../../lib/api";
 
 interface DailyInstall {
   date: string;
@@ -121,17 +120,7 @@ export default function AnalyticsDrawer({ slug, onClose }: { slug: string; onClo
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("kithub_token");
-    fetch(`${API_URL}/api/kits/${slug}/analytics`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.message || `Failed to load analytics (${res.status})`);
-        }
-        return res.json();
-      })
+    fetchWithSupabaseAuth(`/api/kits/${slug}/analytics`)
       .then((d) => {
         setData(d);
         setLoading(false);

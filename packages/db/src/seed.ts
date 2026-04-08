@@ -3,6 +3,7 @@
  * Run: npx tsx packages/db/src/seed.ts
  */
 import { drizzle } from "drizzle-orm/postgres-js";
+import { eq, sql } from "drizzle-orm";
 import postgres from "postgres";
 import * as schema from "./schema";
 
@@ -19,19 +20,35 @@ async function seed() {
   console.log("🌱 Seeding SkillKitHub database...\n");
 
   // ── Test User ───────────────────────────────────────────────────
-  const userId = crypto.randomUUID();
+  const userId = "seed-publisher-user-0000";
+  const publisherId = "seed-publisher-profile-0000";
+  const releaseIds = {
+    weekly: "seed-weekly-earnings-preview-release",
+    slack: "seed-slack-summarizer-release",
+    reviewer: "seed-github-pr-reviewer-release",
+  };
+
   await db.insert(schema.users).values({
     id: userId,
     email: "publisher@kithub.dev",
     emailVerified: new Date(),
-  }).onConflictDoNothing();
+  }).onConflictDoUpdate({
+    target: schema.users.email,
+    set: {
+      emailVerified: new Date(),
+    },
+  });
 
-  const publisherId = crypto.randomUUID();
   await db.insert(schema.publisherProfiles).values({
     id: publisherId,
     userId,
     agentName: "QuantBot",
-  }).onConflictDoNothing();
+  }).onConflictDoUpdate({
+    target: schema.publisherProfiles.agentName,
+    set: {
+      userId,
+    },
+  });
 
   console.log("✅ Created test user: publisher@kithub.dev (QuantBot)\n");
 
@@ -90,7 +107,7 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
     summary: "Automated job for earnings report tracking",
   }).onConflictDoNothing();
 
-  const rel1Id = crypto.randomUUID();
+  const rel1Id = releaseIds.weekly;
   await db.insert(schema.kitReleases).values({
     id: rel1Id,
     kitSlug: "weekly-earnings-preview",
@@ -110,14 +127,27 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
     score: 9,
     findings: [{ type: "tip", message: "Consider adding a fileManifest for Full conformance" }],
     status: "passed",
-  }).onConflictDoNothing();
+  }).onConflictDoUpdate({
+    target: schema.kitReleaseScans.releaseId,
+    set: {
+      score: 9,
+      findings: [{ type: "tip", message: "Consider adding a fileManifest for Full conformance" }],
+      status: "passed",
+    },
+  });
 
-  // Seed some install events
-  for (let i = 0; i < 12; i++) {
-    await db.insert(schema.kitInstallEvents).values({
-      kitSlug: "weekly-earnings-preview",
-      target: ["generic", "claude-code", "codex", "cursor"][i % 4]!,
-    });
+  const [weeklyInstalls] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.kitInstallEvents)
+    .where(eq(schema.kitInstallEvents.kitSlug, "weekly-earnings-preview"));
+
+  if (Number(weeklyInstalls?.count ?? 0) === 0) {
+    for (let i = 0; i < 12; i++) {
+      await db.insert(schema.kitInstallEvents).values({
+        kitSlug: "weekly-earnings-preview",
+        target: ["generic", "claude-code", "codex", "cursor"][i % 4]!,
+      });
+    }
   }
 
   console.log("✅ Kit: weekly-earnings-preview v1.2.0");
@@ -130,7 +160,7 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
     summary: "Generates semantic daily digests of your team's Slack channels",
   }).onConflictDoNothing();
 
-  const rel2Id = crypto.randomUUID();
+  const rel2Id = releaseIds.slack;
   await db.insert(schema.kitReleases).values({
     id: rel2Id,
     kitSlug: "slack-summarizer",
@@ -148,10 +178,27 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
   await db.insert(schema.kitReleaseScans).values({
     releaseId: rel2Id, score: 8,
     findings: [], status: "passed",
-  }).onConflictDoNothing();
+  }).onConflictDoUpdate({
+    target: schema.kitReleaseScans.releaseId,
+    set: {
+      score: 8,
+      findings: [],
+      status: "passed",
+    },
+  });
 
-  for (let i = 0; i < 8; i++) {
-    await db.insert(schema.kitInstallEvents).values({ kitSlug: "slack-summarizer", target: "generic" });
+  const [slackInstalls] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.kitInstallEvents)
+    .where(eq(schema.kitInstallEvents.kitSlug, "slack-summarizer"));
+
+  if (Number(slackInstalls?.count ?? 0) === 0) {
+    for (let i = 0; i < 8; i++) {
+      await db.insert(schema.kitInstallEvents).values({
+        kitSlug: "slack-summarizer",
+        target: "generic",
+      });
+    }
   }
   console.log("✅ Kit: slack-summarizer v0.9.5");
 
@@ -163,7 +210,7 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
     summary: "Checks structural changes and runs security scans on pull requests",
   }).onConflictDoNothing();
 
-  const rel3Id = crypto.randomUUID();
+  const rel3Id = releaseIds.reviewer;
   await db.insert(schema.kitReleases).values({
     id: rel3Id,
     kitSlug: "github-pr-reviewer",
@@ -181,26 +228,50 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
   await db.insert(schema.kitReleaseScans).values({
     releaseId: rel3Id, score: 10,
     findings: [], status: "passed",
-  }).onConflictDoNothing();
+  }).onConflictDoUpdate({
+    target: schema.kitReleaseScans.releaseId,
+    set: {
+      score: 10,
+      findings: [],
+      status: "passed",
+    },
+  });
 
-  for (let i = 0; i < 30; i++) {
-    await db.insert(schema.kitInstallEvents).values({ kitSlug: "github-pr-reviewer", target: "claude-code" });
+  const [reviewerInstalls] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.kitInstallEvents)
+    .where(eq(schema.kitInstallEvents.kitSlug, "github-pr-reviewer"));
+
+  if (Number(reviewerInstalls?.count ?? 0) === 0) {
+    for (let i = 0; i < 30; i++) {
+      await db.insert(schema.kitInstallEvents).values({
+        kitSlug: "github-pr-reviewer",
+        target: "claude-code",
+      });
+    }
   }
   console.log("✅ Kit: github-pr-reviewer v2.1.0");
 
   // ── Learnings ───────────────────────────────────────────────────
-  await db.insert(schema.learnings).values([
-    {
-      kitSlug: "weekly-earnings-preview",
-      context: { os: "macOS", model: "gpt-4o", runtime: "Node 20", platform: "Cursor" },
-      payload: "Firecrawl rate limit is 10 req/min on free tier. Use staggered backoff with 6s delay between ticker batches.",
-    },
-    {
-      kitSlug: "weekly-earnings-preview",
-      context: { os: "Linux", model: "claude-sonnet-4-20250514", runtime: "Node 22", platform: "Claude Code" },
-      payload: "xlsx package requires node-gyp on Linux. Use the pure-JS fallback: exceljs instead.",
-    },
-  ]).onConflictDoNothing();
+  const [existingLearnings] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.learnings)
+    .where(eq(schema.learnings.kitSlug, "weekly-earnings-preview"));
+
+  if (Number(existingLearnings?.count ?? 0) === 0) {
+    await db.insert(schema.learnings).values([
+      {
+        kitSlug: "weekly-earnings-preview",
+        context: { os: "macOS", model: "gpt-4o", runtime: "Node 20", platform: "Cursor" },
+        payload: "Firecrawl rate limit is 10 req/min on free tier. Use staggered backoff with 6s delay between ticker batches.",
+      },
+      {
+        kitSlug: "weekly-earnings-preview",
+        context: { os: "Linux", model: "claude-sonnet-4-20250514", runtime: "Node 22", platform: "Claude Code" },
+        payload: "xlsx package requires node-gyp on Linux. Use the pure-JS fallback: exceljs instead.",
+      },
+    ]);
+  }
 
   console.log("✅ 2 learnings seeded\n");
   console.log("🎉 Seed complete!");

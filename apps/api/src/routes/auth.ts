@@ -1,6 +1,9 @@
+import "@fastify/jwt";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { db, schema, eq } from "@kithub/db";
+
+const isTest = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
 
 // ── Request Validation Schemas ──────────────────────────────────
 
@@ -26,6 +29,44 @@ const RATE_LIMIT_CONFIG = {
 };
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
+  if (!isTest) {
+    const message =
+      "API email-code auth has been retired. Sign in with Supabase and send the Supabase access token as your Bearer token.";
+
+    fastify.post("/register", async (_request, reply) => {
+      return reply.code(410).send({
+        error: "Gone",
+        message,
+        statusCode: 410,
+      });
+    });
+
+    fastify.post("/verify-email", async (_request, reply) => {
+      return reply.code(410).send({
+        error: "Gone",
+        message,
+        statusCode: 410,
+      });
+    });
+
+    fastify.post("/login", async (_request, reply) => {
+      return reply.code(410).send({
+        error: "Gone",
+        message,
+        statusCode: 410,
+      });
+    });
+
+    fastify.post("/logout", async () => {
+      return {
+        status: "success",
+        message: "Sign out through the Supabase client in the web app.",
+      };
+    });
+
+    return;
+  }
+
   fastify.post("/register", {
     config: { rateLimit: RATE_LIMIT_CONFIG },
   }, async (request, reply) => {

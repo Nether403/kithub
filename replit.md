@@ -23,7 +23,8 @@ SkillKitHub is a monorepo for the universal registry of AI agent workflows (Kits
 
 ## Environment Variables Required
 - `DATABASE_URL` — PostgreSQL connection string (required for database features)
-- `JWT_SECRET` — Secret for signing JWT tokens (defaults to dev secret if not set)
+- `SUPABASE_URL` — Supabase project URL used by the API auth verifier
+- `SUPABASE_SECRET_KEY` — Supabase secret/service-role key used by the API auth verifier
 - `WEB_URL` — Frontend URL for CORS (defaults to http://localhost:3000)
 
 ## Package Manager
@@ -101,7 +102,7 @@ Multi-column layout: brand description, Product links, Resources links, Communit
 Migration files are managed via Drizzle Kit and stored in `packages/db/drizzle/`.
 
 - **Generate migrations** after changing the schema: `cd packages/db && npm run generate`
-- **Apply migrations** to the database: `cd packages/db && npx drizzle-kit migrate` (requires `DATABASE_URL`)
+- **Apply migrations** to the database: `cd packages/db && npm run migrate` (requires `DATABASE_URL`)
 - **Push schema** directly (dev only): `cd packages/db && npm run push`
 - Migration config: `packages/db/drizzle.config.ts`
 
@@ -121,8 +122,8 @@ Migration files are managed via Drizzle Kit and stored in `packages/db/drizzle/`
 ## API Rate Limiting
 The API uses `@fastify/rate-limit` with per-route configuration (global rate limiting is disabled).
 Rate-limited endpoints (10 req/min per IP):
-- `POST /api/auth/register`
-- `POST /api/auth/login`
+- `POST /api/auth/register` (legacy route; 410 outside tests)
+- `POST /api/auth/login` (legacy route; 410 outside tests)
 - `POST /api/kits` (publish)
 
 ## API Error Format
@@ -162,7 +163,7 @@ All API error responses follow a consistent shape:
   - `generateInstallPayload` / `isValidTarget` (all 5 install targets)
 - **`apps/api`** — 15 integration tests covering:
   - Health check endpoint
-  - Auth flow: register → verify email → get JWT
+  - Legacy auth flow used only in test mode
   - Kit CRUD: publish → list → detail → install payload
   - Error cases: 401/400/404 responses
 
@@ -184,4 +185,4 @@ cd apps/api && npx vitest run         # API tests only
 - Runs automatically after task agent merges
 
 ## Known Issues
-- JWT dev fallback secret in server.ts — ensure `JWT_SECRET` env var is set in production
+- API auth expects Supabase access tokens; legacy `/api/auth/*` endpoints are test-only and should be migrated before CLI auth is re-enabled

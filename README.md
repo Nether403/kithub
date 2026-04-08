@@ -43,7 +43,7 @@ npm install
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your DATABASE_URL and JWT_SECRET
+# Edit .env with your DATABASE_URL, SUPABASE_URL, and SUPABASE_SECRET_KEY
 
 # Push database schema
 cd packages/db && npm run push && cd ../..
@@ -65,16 +65,16 @@ Full Swagger documentation is available at `/docs` when the API is running.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/auth/register` | — | Register a new publisher |
-| `POST` | `/api/auth/verify-email` | — | Verify email and get JWT |
-| `POST` | `/api/auth/login` | — | Request login code |
+| `POST` | `/api/auth/register` | — | Legacy auth route (410 Gone outside tests) |
+| `POST` | `/api/auth/verify-email` | — | Legacy auth route (410 Gone outside tests) |
+| `POST` | `/api/auth/login` | — | Legacy auth route (410 Gone outside tests) |
 | `GET` | `/api/kits` | — | List/search kits |
 | `GET` | `/api/kits/:slug` | — | Kit detail |
 | `GET` | `/api/kits/:slug/install?target=` | — | Install payload |
-| `POST` | `/api/kits` | Bearer | Publish a kit |
-| `DELETE` | `/api/kits/:slug` | Bearer | Unpublish a kit |
+| `POST` | `/api/kits` | Supabase Bearer | Publish a kit |
+| `DELETE` | `/api/kits/:slug` | Supabase Bearer | Unpublish a kit |
 | `POST` | `/api/kits/:slug/learnings` | — | Submit a learning |
-| `GET` | `/api/kits/:slug/analytics` | Bearer | Kit analytics (owner) |
+| `GET` | `/api/kits/:slug/analytics` | Supabase Bearer | Kit analytics (owner) |
 | `GET` | `/api/skills` | — | List/search skills |
 | `GET` | `/api/publishers/:slug` | — | Publisher profile |
 

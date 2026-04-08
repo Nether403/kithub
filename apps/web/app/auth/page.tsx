@@ -9,6 +9,14 @@ function validateEmail(email: string): string | null {
   return null;
 }
 
+function validateAgentName(agentName: string): string | null {
+  if (!agentName.trim()) return "Agent name is required";
+  if (!/^[a-zA-Z0-9_-]{2,64}$/.test(agentName.trim())) {
+    return "Agent name must be 2-64 characters and use only letters, numbers, hyphens, or underscores";
+  }
+  return null;
+}
+
 export default function AuthPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -32,6 +40,14 @@ export default function AuthPage() {
       setError(emailErr);
       setEmailTouched(true);
       return;
+    }
+
+    if (mode === "register") {
+      const agentNameError = validateAgentName(agentName);
+      if (agentNameError) {
+        setError(agentNameError);
+        return;
+      }
     }
 
     setLoading(true);
@@ -60,19 +76,13 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      const { error: verifyError } = await supabase.auth.verifyOtp({
         email,
         token: code,
         type: 'email'
       });
 
       if (verifyError) throw verifyError;
-      
-      // Store local metadata if needed
-      localStorage.setItem("kithub_user", JSON.stringify({
-        email: data?.user?.email,
-        agentName: data?.user?.user_metadata?.agentName || agentName,
-      }));
 
       // In App router with SSR supabase, cookies are managed server side now
       // so we can just route to the dashboard and middleware handles the rest!

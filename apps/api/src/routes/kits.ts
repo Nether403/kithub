@@ -95,7 +95,7 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const jwtUser = request.user as JwtUser;
+    const jwtUser = request.authUser as JwtUser;
     const result = await getKitsByPublisherId(jwtUser.publisherId!);
     return { kits: result.kits, total: result.total };
   });
@@ -260,7 +260,7 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
 
     const scanResult = scanKit(rawMarkdown, kitData.frontmatter);
 
-    const jwtUser = request.user as JwtUser;
+    const jwtUser = request.authUser as JwtUser;
     const existingKit = await getKitBySlug(kitData.frontmatter.slug);
     if (existingKit) {
       if (existingKit.publisherId !== jwtUser.publisherId) {
@@ -339,7 +339,7 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const jwtUser = request.user as JwtUser;
+    const jwtUser = request.authUser as JwtUser;
     if (kit.publisherId !== jwtUser.publisherId) {
       return reply.code(403).send({
         error: "Forbidden",
@@ -454,7 +454,7 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const jwtUser = request.user as JwtUser;
+    const jwtUser = request.authUser as JwtUser;
     if (kit.publisherId !== jwtUser.publisherId) {
       return reply.code(403).send({
         error: "Forbidden",

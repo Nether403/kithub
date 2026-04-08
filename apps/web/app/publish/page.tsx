@@ -2,8 +2,7 @@
 import { useState, useRef, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import MarkdownPreview from "../components/MarkdownPreview";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+import { API_URL, fetchWithSupabaseAuth } from "../../lib/api";
 
 function PublishPageInner() {
   const searchParams = useSearchParams();
@@ -97,30 +96,19 @@ function PublishPageInner() {
     setError("");
     setLoading(true);
 
-    const token = localStorage.getItem("kithub_token");
-    if (!token) {
-      setError("You must be signed in to publish. Go to /auth first.");
-      setLoading(false);
-      return;
-    }
-
     try {
-      const res = await fetch(`${API_URL}/api/kits`, {
+      const data = await fetchWithSupabaseAuth("/api/kits", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ rawMarkdown: raw }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.details || "Publish failed");
-
       setResult(data);
       setStep(3);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Publish failed");
     } finally {
       setLoading(false);
     }

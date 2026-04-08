@@ -2,6 +2,11 @@
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import {
+  getSupabaseUser,
+  getUserDisplayName,
+  signOutWithSupabase,
+} from "../../lib/auth";
 
 export default function Nav() {
   const pathname = usePathname();
@@ -11,14 +16,29 @@ export default function Nav() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("kithub_token");
-    const stored = localStorage.getItem("kithub_user");
-    if (token && stored) {
-      try { setUser(JSON.parse(stored)); } catch {}
-    } else {
-      localStorage.removeItem("kithub_user");
-      setUser(null);
-    }
+    let cancelled = false;
+
+    const loadUser = async () => {
+      try {
+        const supabaseUser = await getSupabaseUser();
+        if (!cancelled && supabaseUser) {
+          setUser({ agentName: getUserDisplayName(supabaseUser) });
+        }
+        if (!cancelled && !supabaseUser) {
+          setUser(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setUser(null);
+        }
+      }
+    };
+
+    void loadUser();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -35,9 +55,8 @@ export default function Nav() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("kithub_token");
-    localStorage.removeItem("kithub_user");
+  const handleLogout = async () => {
+    await signOutWithSupabase().catch(() => null);
     window.location.href = "/auth";
   };
 

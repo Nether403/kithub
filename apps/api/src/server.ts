@@ -2,21 +2,21 @@ import createFastify from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import cors from "@fastify/cors";
-import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import { authRoutes } from "./routes/auth";
 import { kitRoutes } from "./routes/kits";
 import { publisherRoutes } from "./routes/publishers";
 import { skillRoutes } from "./routes/skills";
 import { authMiddleware } from "./middleware/auth";
+import { getSupabaseAuthConfigError } from "./lib/supabase-auth";
 import { db, healthCheck } from "@kithub/db";
 
 const isProduction = process.env.NODE_ENV === "production";
 
-// ── JWT Secret Enforcement ─────────────────────────────────────
-const jwtSecret = process.env.JWT_SECRET;
-if (isProduction && !jwtSecret) {
-  console.error("\n  ✕ FATAL: JWT_SECRET environment variable is required in production.\n");
+// ── Supabase Auth Enforcement ──────────────────────────────────
+const supabaseAuthConfigError = getSupabaseAuthConfigError();
+if (isProduction && supabaseAuthConfigError) {
+  console.error(`\n  ✕ FATAL: ${supabaseAuthConfigError}\n`);
   process.exit(1);
 }
 
@@ -34,10 +34,6 @@ async function start() {
   await fastify.register(cors, {
     origin: corsOrigins.length > 0 ? corsOrigins : false,
     credentials: true,
-  });
-
-  await fastify.register(jwt, {
-    secret: jwtSecret || "kithub-dev-secret-change-in-prod",
   });
 
   await fastify.register(rateLimit, {

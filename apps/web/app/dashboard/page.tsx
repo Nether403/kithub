@@ -1,21 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { SkeletonCard, SkeletonStat } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import AnalyticsDrawer from "../components/Analytics";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-
-async function apiFetch(url: string, options?: RequestInit) {
-  const res = await fetch(url, options);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.message || `Request failed (${res.status})`);
-  }
-  return res.json();
-}
+import {
+  getSupabaseUser,
+  getUserDisplayName,
+  signOutWithSupabase,
+} from "../../lib/auth";
+import { fetchWithSupabaseAuth } from "../../lib/api";
 
 export default function Dashboard() {
   const [kits, setKits] = useState<any[]>([]);
@@ -25,74 +19,88 @@ export default function Dashboard() {
   const [unpublishing, setUnpublishing] = useState(false);
   const [analyticsSlug, setAnalyticsSlug] = useState<string | null>(null);
   const { showToast } = useToast();
-  const router = useRouter();
-
-  const fetchKits = () => {
-    const token = localStorage.getItem("kithub_token");
-    if (!token) return;
-
-    fetch(`${API_URL}/api/kits/mine`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => {
-        if (!res.ok) {
-          return res.json().then(body => {
-            throw new Error(body.message || `Request failed (${res.status})`);
-          });
-        }
-        return res.json();
-      })
-      .then(data => {
-        setKits(data.kits || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        showToast(err.message || "Failed to load your kits", "error");
-        setKits([]);
-        setLoading(false);
-      });
-  };
 
   useEffect(() => {
-    const token = localStorage.getItem("kithub_token");
-    const storedUser = localStorage.getItem("kithub_user");
+    let cancelled = false;
 
-    if (!token) {
-      showToast("Please sign in to continue", "warning");
-      setTimeout(() => { window.location.href = "/auth"; }, 1500);
-      return;
+    const loadDashboard = async () => {
+      try {
+        const supabaseUser = await getSupabaseUser();
+        if (!supabaseUser) {
+          showToast("Please sign in to continue", "warning");
+          setTimeout(() => {
+            window.location.href = "/auth";
+          }, 1500);
+          return;
+        }
+
+        if (!cancelled) {
+          setUser({
+            email: supabaseUser.email ?? "",
+            agentName: getUserDisplayName(supabaseUser),
+          });
+        }
+
+        const data = await fetchWithSupabaseAuth("/api/kits/mine");
+        if (!cancelled) {
+          setKits(data.kits || []);
+          setLoading(false);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to load your kits";
+          showToast(message, "error");
+          setKits([]);
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadDashboard();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showToast]);
+
+  const refreshKits = async () => {
+    try {
+      const data = await fetchWithSupabaseAuth("/api/kits/mine");
+      setKits(data.kits || []);
+      setLoading(false);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to load your kits";
+      showToast(message, "error");
+      setKits([]);
+      setLoading(false);
     }
+  };
 
-    if (storedUser) {
-      try { setUser(JSON.parse(storedUser)); } catch {}
-    }
-
-    fetchKits();
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("kithub_token");
-    localStorage.removeItem("kithub_user");
+  const handleLogout = async () => {
+    await signOutWithSupabase().catch(() => null);
     window.location.href = "/auth";
   };
 
   const handleUnpublish = async () => {
     if (!unpublishSlug) return;
     setUnpublishing(true);
-    const token = localStorage.getItem("kithub_token");
 
     try {
-      const res = await fetch(`${API_URL}/api/kits/${unpublishSlug}`, {
+      await fetchWithSupabaseAuth(`/api/kits/${unpublishSlug}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Unpublish failed");
       showToast(`"${unpublishSlug}" has been unpublished`, "success");
       setUnpublishSlug(null);
-      fetchKits();
-    } catch (err: any) {
-      showToast(err.message, "error");
+      await refreshKits();
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Unpublish failed",
+        "error",
+      );
     } finally {
       setUnpublishing(false);
     }

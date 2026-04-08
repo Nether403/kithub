@@ -5,6 +5,7 @@ import { pgTable, text, timestamp, varchar, integer, jsonb, uniqueIndex } from "
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   email: varchar("email").notNull().unique(),
+  supabaseUserId: varchar("supabase_user_id").unique(),
   emailVerified: timestamp("email_verified"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
