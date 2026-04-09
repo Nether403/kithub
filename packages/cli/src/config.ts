@@ -5,11 +5,15 @@ import { homedir } from "os";
 const CONFIG_DIR = join(homedir(), ".kithub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
-interface KitHubConfig {
+export interface KitHubConfig {
   token?: string;
+  refreshToken?: string;
+  expiresAt?: number;
   email?: string;
   agentName?: string;
   apiUrl?: string;
+  supabaseUrl?: string;
+  supabasePublishableKey?: string;
 }
 
 function ensureConfigDir(): void {
@@ -38,6 +42,16 @@ export function saveConfig(config: Partial<KitHubConfig>): void {
 export function clearConfig(): void {
   ensureConfigDir();
   writeFileSync(CONFIG_FILE, JSON.stringify({}, null, 2), "utf-8");
+}
+
+export function clearAuthSession(): void {
+  ensureConfigDir();
+  const existing = loadConfig();
+  const { token, refreshToken, expiresAt, ...rest } = existing;
+  void token;
+  void refreshToken;
+  void expiresAt;
+  writeFileSync(CONFIG_FILE, JSON.stringify(rest, null, 2), "utf-8");
 }
 
 export function getToken(): string | null {

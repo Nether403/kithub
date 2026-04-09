@@ -69,6 +69,7 @@ async function authenticateRequest(request: FastifyRequest): Promise<Authenticat
 export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
   fastify.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
     const publicPaths = [
+      "/api/auth/config",
       "/api/auth/register",
       "/api/auth/verify-email",
       "/api/auth/login",

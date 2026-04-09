@@ -14,7 +14,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@kithub/schema": "*"
+    "@kithub/schema": "*",
+    "@supabase/supabase-js": "^2.57.4"
   },
   "devDependencies": {
     "@repo/typescript-config": "*",

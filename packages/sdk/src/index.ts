@@ -1,3 +1,4 @@
+import { createClient, type User as SupabaseUser } from "@supabase/supabase-js";
 import { KitFrontmatterSchema, type KitFrontmatter, type KitInstallPayload } from "@kithub/schema";
 
 // ══════════════════════════════════════════════════════════════════
@@ -42,7 +43,49 @@ export interface AuthResult {
   status: string;
   message?: string;
   token?: string;
-  agentName?: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  agentName?: string | null;
+  email?: string | null;
+  userId?: string;
+}
+
+export interface PublicAuthConfig {
+  provider: "supabase";
+  authMethod: "email_otp";
+  supabaseUrl: string;
+  supabasePublishableKey: string;
+}
+
+function envValue(...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function getAgentName(user: SupabaseUser | null): string | null {
+  if (!user) {
+    return null;
+  }
+
+  const metadata = user.user_metadata ?? {};
+  const value = metadata.agentName ?? metadata.agent_name ?? metadata.publisherName;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function createAuthClient(config: PublicAuthConfig) {
+  return createClient(config.supabaseUrl, config.supabasePublishableKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -52,10 +95,38 @@ export interface AuthResult {
 export class KitHubClient {
   private baseUrl: string;
   private token: string | null = null;
+  private authConfig: PublicAuthConfig | null = null;
 
-  constructor(options?: { baseUrl?: string; token?: string }) {
+  constructor(options?: {
+    baseUrl?: string;
+    token?: string;
+    supabaseUrl?: string;
+    supabasePublishableKey?: string;
+  }) {
     this.baseUrl = options?.baseUrl || process.env.KITHUB_API_URL || "http://localhost:8080";
     this.token = options?.token ?? null;
+
+    const supabaseUrl =
+      options?.supabaseUrl ||
+      envValue("KITHUB_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL");
+    const supabasePublishableKey =
+      options?.supabasePublishableKey ||
+      envValue(
+        "KITHUB_SUPABASE_PUBLISHABLE_KEY",
+        "KITHUB_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY",
+        "SUPABASE_ANON_KEY"
+      );
+
+    if (supabaseUrl && supabasePublishableKey) {
+      this.authConfig = {
+        provider: "supabase",
+        authMethod: "email_otp",
+        supabaseUrl,
+        supabasePublishableKey,
+      };
+    }
   }
 
   // ── Auth Management ─────────────────────────────────────────────
@@ -79,35 +150,141 @@ export class KitHubClient {
       ...options,
       headers: { ...this.headers(), ...options?.headers },
     });
+
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || `Request failed: ${res.statusText}`);
+      throw new Error(data.error || data.message || `Request failed: ${res.statusText}`);
     }
+
     return data as T;
+  }
+
+  private async getAuthConfig(): Promise<PublicAuthConfig> {
+    if (this.authConfig) {
+      return this.authConfig;
+    }
+
+    const config = await this.request<PublicAuthConfig>("/api/auth/config");
+    this.authConfig = config;
+    return config;
+  }
+
+  private async buildAuthClient() {
+    return createAuthClient(await this.getAuthConfig());
+  }
+
+  private toAuthResult(
+    status: string,
+    message: string,
+    session: {
+      access_token?: string;
+      refresh_token?: string;
+      expires_at?: number | null;
+      user?: SupabaseUser | null;
+    } | null
+  ): AuthResult {
+    const token = session?.access_token?.trim();
+    if (token) {
+      this.setToken(token);
+    }
+
+    return {
+      status,
+      message,
+      token,
+      refreshToken: session?.refresh_token?.trim() || undefined,
+      expiresAt: typeof session?.expires_at === "number" ? session.expires_at : undefined,
+      agentName: getAgentName(session?.user ?? null),
+      email: session?.user?.email ?? null,
+      userId: session?.user?.id,
+    };
   }
 
   // ── Auth Endpoints ──────────────────────────────────────────────
 
   async register(email: string, agentName: string): Promise<AuthResult> {
-    return this.request("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, agentName }),
+    const supabase = await this.buildAuthClient();
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        data: {
+          agentName,
+        },
+      },
     });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return {
+      status: "pending",
+      message: `Verification code sent to ${email}.`,
+      agentName,
+      email,
+    };
   }
 
   async verify(email: string, code: string): Promise<AuthResult> {
-    const result = await this.request<AuthResult>("/api/auth/verify-email", {
-      method: "POST",
-      body: JSON.stringify({ email, code }),
+    const supabase = await this.buildAuthClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: "email",
     });
-    if (result.token) this.setToken(result.token);
-    return result;
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data.session?.access_token) {
+      throw new Error("Verification succeeded but no Supabase session was returned.");
+    }
+
+    return this.toAuthResult("verified", "Email verified.", {
+      ...data.session,
+      user: data.user,
+    });
   }
 
   async login(email: string): Promise<AuthResult> {
-    return this.request("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email }),
+    const supabase = await this.buildAuthClient();
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return {
+      status: "pending",
+      message: `Verification code sent to ${email}.`,
+      email,
+    };
+  }
+
+  async refreshAuthSession(refreshToken: string): Promise<AuthResult> {
+    const supabase = await this.buildAuthClient();
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data.session?.access_token) {
+      throw new Error("Session refresh succeeded but no access token was returned.");
+    }
+
+    return this.toAuthResult("refreshed", "Session refreshed.", {
+      ...data.session,
+      user: data.user,
     });
   }
 
@@ -149,3 +326,5 @@ export class KitHubClient {
     });
   }
 }
+
+export { KitFrontmatterSchema };

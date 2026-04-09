@@ -28,7 +28,44 @@ const RATE_LIMIT_CONFIG = {
   timeWindow: "1 minute",
 };
 
+function getPublicSupabaseAuthConfig() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabasePublishableKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
+    process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabasePublishableKey) {
+    return {
+      error:
+        "Public Supabase auth config is missing. Set NEXT_PUBLIC_SUPABASE_URL/SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY, or SUPABASE_ANON_KEY.",
+    };
+  }
+
+  return {
+    supabaseUrl,
+    supabasePublishableKey,
+  };
+}
+
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.get("/config", async (_request, reply) => {
+    const config = getPublicSupabaseAuthConfig();
+    if ("error" in config) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: config.error,
+        statusCode: 503,
+      });
+    }
+
+    return {
+      provider: "supabase",
+      authMethod: "email_otp",
+      ...config,
+    };
+  });
+
   if (!isTest) {
     const message =
       "API email-code auth has been retired. Sign in with Supabase and send the Supabase access token as your Bearer token.";
