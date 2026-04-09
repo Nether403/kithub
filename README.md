@@ -117,6 +117,20 @@ cd packages/schema && npx vitest run  # Schema tests (39)
 cd apps/api && npx vitest run         # API integration tests (15)
 ```
 
+## Dependency Security
+
+```bash
+npm run audit       # Production-relevant vulnerabilities only
+npm run audit:full  # Full dependency tree, including dev tooling
+```
+
+Current status:
+
+- Production dependencies should audit clean after the Fastify, Drizzle ORM, and Hono refresh.
+- `npm run audit:full` may still report moderate findings from `drizzle-kit`, which is a development-only migration CLI used in [packages/db/package.json](packages/db/package.json).
+- Those remaining findings currently come from Drizzle's published CLI dependency chain, not from the deployed web or API runtime.
+- Treat that as accepted residual dev-tooling risk for now, and revisit when Drizzle publishes a CLI release that removes the `@esbuild-kit/*` chain.
+
 ## Environment Variables
 
 See [`.env.example`](.env.example) for all required and optional configuration.
