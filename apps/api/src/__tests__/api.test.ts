@@ -78,6 +78,20 @@ describe("Health check", () => {
   });
 });
 
+describe("Auth config and identity", () => {
+  it("serves public auth config without authentication", async (ctx) => {
+    if (skipIfNoDb()) return ctx.skip();
+    const res = await app.inject({ method: "GET", url: "/api/auth/config" });
+    expect([200, 503]).toContain(res.statusCode);
+  });
+
+  it("rejects /api/auth/me without a bearer token", async (ctx) => {
+    if (skipIfNoDb()) return ctx.skip();
+    const res = await app.inject({ method: "GET", url: "/api/auth/me" });
+    expect(res.statusCode).toBe(401);
+  });
+});
+
 describe("Auth flow: register -> verify -> get token", () => {
   it("registers a new user", async (ctx) => {
     if (skipIfNoDb()) return ctx.skip();
@@ -132,6 +146,22 @@ describe("Auth flow: register -> verify -> get token", () => {
     expect(body.status).toBe("verified");
     expect(body.token).toBeDefined();
     authToken = body.token;
+  });
+
+  it("returns the canonical identity from /api/auth/me", async (ctx) => {
+    if (skipIfNoDb()) return ctx.skip();
+    expect(authToken).toBeTruthy();
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      headers: { authorization: `Bearer ${authToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.email).toBe(TEST_EMAIL);
+    expect(body.userId).toBeDefined();
+    expect(body.supabaseUserId).toBeDefined();
+    expect(body.publisherId).toBeDefined();
   });
 
   it("rejects invalid verification code", async (ctx) => {

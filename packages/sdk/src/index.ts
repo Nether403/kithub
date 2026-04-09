@@ -50,6 +50,15 @@ export interface AuthResult {
   userId?: string;
 }
 
+export interface CurrentIdentity {
+  email: string;
+  supabaseUserId: string;
+  userId: string;
+  publisherId?: string;
+  publisherName?: string | null;
+  publisherIssue?: string;
+}
+
 export interface PublicAuthConfig {
   provider: "supabase";
   authMethod: "email_otp";
@@ -107,17 +116,17 @@ export class KitHubClient {
     this.token = options?.token ?? null;
 
     const supabaseUrl =
-      options?.supabaseUrl ||
-      envValue("KITHUB_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL");
+      envValue("KITHUB_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL") ||
+      options?.supabaseUrl;
     const supabasePublishableKey =
-      options?.supabasePublishableKey ||
       envValue(
         "KITHUB_SUPABASE_PUBLISHABLE_KEY",
         "KITHUB_SUPABASE_ANON_KEY",
         "NEXT_PUBLIC_SUPABASE_ANON_KEY",
         "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY",
         "SUPABASE_ANON_KEY"
-      );
+      ) ||
+      options?.supabasePublishableKey;
 
     if (supabaseUrl && supabasePublishableKey) {
       this.authConfig = {
@@ -171,6 +180,34 @@ export class KitHubClient {
 
   private async buildAuthClient() {
     return createAuthClient(await this.getAuthConfig());
+  }
+
+  private async buildAuthenticatedAuthClient(session: {
+    accessToken?: string | null;
+    refreshToken?: string | null;
+  } = {}) {
+    const supabase = await this.buildAuthClient();
+    const accessToken = session.accessToken?.trim() || this.token?.trim();
+    const refreshToken = session.refreshToken?.trim();
+
+    if (!accessToken) {
+      throw new Error("Authentication required.");
+    }
+
+    if (!refreshToken) {
+      throw new Error("A refresh token is required for this operation. Run `kithub login` again.");
+    }
+
+    const { error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return supabase;
   }
 
   private toAuthResult(
@@ -285,6 +322,36 @@ export class KitHubClient {
     return this.toAuthResult("refreshed", "Session refreshed.", {
       ...data.session,
       user: data.user,
+    });
+  }
+
+  async updateUserMetadata(
+    metadata: { agentName: string },
+    session?: { accessToken?: string | null; refreshToken?: string | null }
+  ): Promise<AuthResult> {
+    const supabase = await this.buildAuthenticatedAuthClient(session);
+    const { data, error } = await supabase.auth.updateUser({
+      data: metadata,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      throw new Error(sessionError.message);
+    }
+
+    return this.toAuthResult("updated", "User metadata updated.", {
+      ...sessionData.session,
+      user: data.user ?? sessionData.session?.user ?? null,
+    });
+  }
+
+  async getCurrentIdentity(): Promise<CurrentIdentity> {
+    return this.request("/api/auth/me", {
+      method: "GET",
     });
   }
 

@@ -1,27 +1,37 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { KitHubClient, type AuthResult } from "@kithub/sdk";
+import { KitHubClient } from "@kithub/sdk";
 import type { KitInstallPayload } from "@kithub/schema";
 import { parseKitMd } from "@kithub/schema";
 import { scanKit } from "@kithub/schema/src/scanner";
-import { readFileSync, writeFileSync, mkdirSync, existsSync, appendFileSync } from "fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "fs";
 import { join } from "path";
 import { createInterface } from "readline";
 import {
+  authenticateWithOtp,
+  completeOtpVerification,
+  ensurePublisherProfile,
+  runWithPublisherRepair,
+  resolveAuthSession,
+  validateAgentName,
+  type CliAuthIo,
+} from "./auth";
+import {
   clearAuthSession,
-  clearConfig,
   getApiUrl,
   getToken,
   loadConfig,
-  saveConfig,
-  type KitHubConfig,
 } from "./config";
 
 interface InstallPayloadWithRaw extends KitInstallPayload {
   rawMarkdown?: string;
 }
-
-const AGENT_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 function createClient(): KitHubClient {
   const token = getToken();
@@ -38,173 +48,38 @@ function prompt(question: string): Promise<string> {
   });
 }
 
-const program = new Command();
-
-function accent(text: string) { return `\x1b[32m${text}\x1b[0m`; }
-function dim(text: string) { return `\x1b[2m${text}\x1b[0m`; }
-function bold(text: string) { return `\x1b[1m${text}\x1b[0m`; }
-function danger(text: string) { return `\x1b[31m${text}\x1b[0m`; }
-function warn(text: string) { return `\x1b[33m${text}\x1b[0m`; }
-
-function validateAgentName(agentName: string): string | null {
-  const trimmed = agentName.trim();
-  if (!trimmed) {
-    return "Agent name is required.";
-  }
-  if (trimmed.length < 2 || trimmed.length > 64) {
-    return "Agent name must be between 2 and 64 characters.";
-  }
-  if (!AGENT_NAME_PATTERN.test(trimmed)) {
-    return "Agent name must be alphanumeric with hyphens or underscores.";
-  }
-  return null;
-}
-
-function saveVerifiedSession(result: AuthResult, email: string, fallbackAgentName?: string) {
-  if (!result.token) {
-    throw new Error("Verification succeeded but no access token was returned.");
-  }
-
-  saveConfig({
-    token: result.token,
-    refreshToken: result.refreshToken,
-    expiresAt: result.expiresAt,
-    email: result.email ?? email,
-    agentName: result.agentName ?? fallbackAgentName,
-  });
-}
-
-function getDefaultPromptValue(primary?: string | null, fallback?: string | null): string {
-  return primary?.trim() || fallback?.trim() || "";
-}
-
-async function sendOtp(
-  client: KitHubClient,
-  email: string,
-  agentName?: string
-): Promise<{ result: AuthResult; mode: "login" | "register" }> {
-  if (agentName) {
-    const result = await client.register(email, agentName);
-    return { result, mode: "register" };
-  }
-
-  const result = await client.login(email);
-  return { result, mode: "login" };
-}
-
-async function interactiveSignIn(
-  client: KitHubClient,
-  options?: {
-    requirePublisher?: boolean;
-    defaultEmail?: string;
-    suggestedAgentName?: string;
-  }
-): Promise<{ token: string; email: string; agentName?: string }> {
-  const emailHint = options?.defaultEmail ? ` (${options.defaultEmail})` : "";
-  const emailInput = await prompt(`  Email${emailHint}: `);
-  const email = emailInput || options?.defaultEmail || "";
-  if (!email) {
-    throw new Error("Email is required.");
-  }
-
-  let requestedAgentName: string | undefined;
-  if (options?.requirePublisher) {
-    const suggestion = options?.suggestedAgentName
-      ? ` current: ${options.suggestedAgentName}`
-      : " needed for first-time publisher signup";
-    console.log(`  ${dim(`Press Enter to sign in only, or enter an agent name to create/repair your publisher profile (${suggestion.trim()}).`)}`);
-    const agentNameInput = await prompt("  Agent name (optional): ");
-    if (agentNameInput) {
-      const validationError = validateAgentName(agentNameInput);
-      if (validationError) {
-        throw new Error(validationError);
-      }
-      requestedAgentName = agentNameInput;
-    }
-  }
-
-  const { result, mode } = await sendOtp(client, email, requestedAgentName);
-  console.log(`  ${accent("✓")} ${result.message || `Verification code sent to ${email}`}`);
-  if (mode === "register" && requestedAgentName) {
-    console.log(`  ${dim("Publisher profile requested for")} ${bold(requestedAgentName)}`);
-  }
-
-  const code = await prompt("  Verification code: ");
-  if (!code) {
-    throw new Error("Verification code is required.");
-  }
-
-  const verifyResult = await client.verify(email, code);
-  saveVerifiedSession(verifyResult, email, requestedAgentName);
-
+function createConsoleIo(): CliAuthIo {
   return {
-    token: verifyResult.token!,
-    email: verifyResult.email ?? email,
-    agentName: verifyResult.agentName ?? requestedAgentName,
+    prompt,
+    log: (message) => console.log(message),
+    error: (message) => console.error(message),
   };
 }
 
-async function resolveAuthSession(
-  client: KitHubClient,
-  options?: { interactive?: boolean; requirePublisher?: boolean }
-): Promise<{ token: string | null; config: KitHubConfig }> {
-  const envToken = process.env.KITHUB_TOKEN?.trim();
-  if (envToken) {
-    client.setToken(envToken);
-    return { token: envToken, config: loadConfig() };
-  }
+const program = new Command();
 
-  let config = loadConfig();
-  const legacyStoredToken = config.token && !config.refreshToken;
-  if (legacyStoredToken) {
-    clearAuthSession();
-    config = loadConfig();
-    if (options?.interactive) {
-      console.log(`\n  ${warn("Stored CLI session predates Supabase refresh support.")} Please sign in again.\n`);
-    }
-  }
+function accent(text: string) {
+  return `\x1b[32m${text}\x1b[0m`;
+}
 
-  if (config.refreshToken) {
-    const now = Math.floor(Date.now() / 1000);
-    const shouldRefresh =
-      !config.token || !config.expiresAt || config.expiresAt <= now + 60;
+function dim(text: string) {
+  return `\x1b[2m${text}\x1b[0m`;
+}
 
-    if (shouldRefresh) {
-      try {
-        const refreshed = await client.refreshAuthSession(config.refreshToken);
-        saveVerifiedSession(
-          refreshed,
-          getDefaultPromptValue(config.email, refreshed.email),
-          getDefaultPromptValue(refreshed.agentName, config.agentName) || undefined
-        );
-        config = loadConfig();
-      } catch {
-        clearAuthSession();
-        config = loadConfig();
-        if (options?.interactive) {
-          console.log(`\n  ${warn("Stored CLI session expired.")} Please sign in again.\n`);
-        }
-      }
-    }
-  }
+function bold(text: string) {
+  return `\x1b[1m${text}\x1b[0m`;
+}
 
-  const storedToken = config.token?.trim() || null;
-  if (storedToken) {
-    client.setToken(storedToken);
-    return { token: storedToken, config };
-  }
+function danger(text: string) {
+  return `\x1b[31m${text}\x1b[0m`;
+}
 
-  if (!options?.interactive) {
-    return { token: null, config };
-  }
+function warn(text: string) {
+  return `\x1b[33m${text}\x1b[0m`;
+}
 
-  const interactiveSession = await interactiveSignIn(client, {
-    requirePublisher: options.requirePublisher,
-    defaultEmail: config.email,
-    suggestedAgentName: config.agentName,
-  });
-
-  return { token: interactiveSession.token, config: loadConfig() };
+function renderIdentityLabel(email?: string, agentName?: string | null) {
+  return agentName || email || "unknown user";
 }
 
 program
@@ -310,16 +185,22 @@ program
   .action(async (file) => {
     try {
       const client = createClient();
-      const { token } = await resolveAuthSession(client, {
+      const io = createConsoleIo();
+      let session = await resolveAuthSession(client, io, {
         interactive: true,
         requirePublisher: true,
+        bootstrapIdentity: true,
       });
 
-      if (!token) {
+      if (!session.token) {
         throw new Error("Authentication failed.");
       }
 
-      client.setToken(token);
+      if (!session.identity?.publisherId) {
+        session = await ensurePublisherProfile(client, io, session);
+      }
+
+      client.setToken(session.token!);
 
       let raw: string;
       try {
@@ -351,22 +232,16 @@ program
       }
       console.log(`  ${accent("✓")} Local validation passed (${parsed.frontmatter.slug} v${parsed.frontmatter.version})\n`);
 
-      let result;
-      try {
-        result = await client.publishKit(raw);
-      } catch (err: any) {
-        if (typeof err.message === "string" && err.message.includes("Publisher profile required")) {
-          const config = loadConfig();
-          console.error(danger(`Error: ${err.message}`));
-          if (config.email) {
-            console.error(dim(`Hint: run ${bold(`kithub register ${config.email} <agentName>`)} or sign in again and enter an agent name.`));
-          }
-          process.exit(1);
-        }
-        throw err;
-      }
+      const publishAttempt = await runWithPublisherRepair(client, io, session, () =>
+        client.publishKit(raw)
+      );
+      session = publishAttempt.session;
+      const result = publishAttempt.result;
 
-      const webUrl = process.env.KITHUB_WEB_URL || loadConfig().apiUrl?.replace(":8080", ":5000") || "http://localhost:3000";
+      const webUrl =
+        process.env.KITHUB_WEB_URL ||
+        loadConfig().apiUrl?.replace(":8080", ":5000") ||
+        "http://localhost:3000";
       const liveUrl = `${webUrl}/registry/${result.slug}`;
 
       console.log(`  Status: ${result.status === "published" ? accent("PUBLISHED ✓") : danger("BLOCKED ✕")}`);
@@ -407,17 +282,20 @@ program
 program
   .command("login")
   .description("Authenticate with SkillKitHub using a Supabase email OTP")
-  .argument("<email>", "Your email")
+  .argument("[email]", "Your email")
   .action(async (email) => {
     try {
       const client = createClient();
+      const io = createConsoleIo();
       console.log(`\n  ${accent("◆")} ${bold("SkillKitHub Login")}\n`);
 
-      const result = await client.login(email);
-      console.log(`  ${accent("✓")} ${result.message || `Verification code sent to ${email}`}`);
-      console.log(`  ${dim("Enter the code via:")} kithub verify ${email} <code>`);
-      console.log(`  ${dim("First-time publisher? Use:")} kithub register ${email} <agentName>`);
-      console.log();
+      const { identity, result } = await authenticateWithOtp(client, io, {
+        email,
+        defaultEmail: loadConfig().email,
+        otpSuccessPrefix: accent("✓"),
+      });
+
+      console.log(`\n  ${accent("✓")} Session saved for ${bold(renderIdentityLabel(identity.email, identity.publisherName ?? result.agentName))}\n`);
     } catch (err: any) {
       console.error(danger(`Error: ${err.message}`));
       process.exit(1);
@@ -426,24 +304,42 @@ program
 
 program
   .command("register")
-  .description("Create or repair a publisher profile, then send a Supabase email OTP")
-  .argument("<email>", "Your email")
-  .argument("<agentName>", "Publisher agent name")
+  .description("Create or repair a publisher profile, then complete the Supabase email OTP flow")
+  .argument("[email]", "Your email")
+  .argument("[agentName]", "Publisher agent name")
   .action(async (email, agentName) => {
     try {
-      const validationError = validateAgentName(agentName);
+      const client = createClient();
+      const io = createConsoleIo();
+      const config = loadConfig();
+      console.log(`\n  ${accent("◆")} ${bold("SkillKitHub Register")}\n`);
+
+      let requestedAgentName = agentName?.trim() || "";
+      if (!requestedAgentName) {
+        const hint = config.agentName ? ` (${config.agentName})` : "";
+        requestedAgentName =
+          (await io.prompt(`  Agent name${hint}: `)).trim() ||
+          config.agentName?.trim() ||
+          "";
+      }
+
+      const validationError = validateAgentName(requestedAgentName);
       if (validationError) {
         throw new Error(validationError);
       }
 
-      const client = createClient();
-      console.log(`\n  ${accent("◆")} ${bold("SkillKitHub Register")}\n`);
+      const { identity } = await authenticateWithOtp(client, io, {
+        email,
+        defaultEmail: config.email,
+        agentName: requestedAgentName,
+        otpSuccessPrefix: accent("✓"),
+      });
 
-      const result = await client.register(email, agentName);
-      console.log(`  ${accent("✓")} ${result.message || `Verification code sent to ${email}`}`);
-      console.log(`  ${dim("Publisher profile requested for")} ${bold(agentName)}`);
-      console.log(`  ${dim("Enter the code via:")} kithub verify ${email} <code>`);
-      console.log();
+      if (!identity.publisherId) {
+        throw new Error(identity.publisherIssue ?? "Publisher profile could not be created.");
+      }
+
+      console.log(`\n  ${accent("✓")} Publisher profile ready for ${bold(identity.publisherName ?? requestedAgentName)}\n`);
     } catch (err: any) {
       console.error(danger(`Error: ${err.message}`));
       process.exit(1);
@@ -452,18 +348,31 @@ program
 
 program
   .command("verify")
-  .description("Verify login code and store the Supabase session")
-  .argument("<email>", "Your email")
-  .argument("<code>", "6-digit verification code")
-  .action(async (email, code) => {
+  .description("Verify a login code and store the Supabase session")
+  .argument("[first]", "Email or verification code")
+  .argument("[second]", "Verification code")
+  .action(async (first, second) => {
     try {
+      const config = loadConfig();
       const client = createClient();
-      const result = await client.verify(email, code);
+      const code = (second ?? first)?.trim() || "";
+      const email = (second ? first : config.email)?.trim() || "";
 
-      saveVerifiedSession(result, email);
-      console.log(`\n  ${accent("✓")} Verified and session saved!`);
-      console.log(`  ${dim("Logged in as")} ${bold(result.agentName || result.email || email)}`);
-      console.log();
+      if (!code) {
+        throw new Error("Verification code is required.");
+      }
+      if (!email) {
+        throw new Error("Email is required. Pass it explicitly or run `kithub login` again.");
+      }
+
+      const { identity } = await completeOtpVerification(
+        client,
+        email,
+        code,
+        config.agentName
+      );
+
+      console.log(`\n  ${accent("✓")} Verified and session saved for ${bold(renderIdentityLabel(identity.email, identity.publisherName))}\n`);
     } catch (err: any) {
       console.error(danger(`Error: ${err.message}`));
       process.exit(1);
@@ -475,21 +384,37 @@ program
   .description("Show current authenticated user")
   .action(async () => {
     const client = createClient();
-    const { token } = await resolveAuthSession(client, { interactive: false });
+    const session = await resolveAuthSession(client, undefined, {
+      interactive: false,
+      bootstrapIdentity: true,
+    });
     const config = loadConfig();
 
-    if (!token) {
-      console.log(`\n  ${dim("Not logged in. Run")} kithub login <email> ${dim("to authenticate.")}\n`);
+    if (!session.token) {
+      console.log(`\n  ${dim("Not logged in. Run")} kithub login ${dim("to authenticate.")}\n`);
       process.exit(1);
     }
 
     console.log(`\n  ${accent("◆")} ${bold("SkillKitHub Identity")}\n`);
-    if (config.email) console.log(`  Email: ${config.email}`);
-    if (config.agentName) console.log(`  Agent: ${bold(config.agentName)}`);
+    if (session.identity) {
+      console.log(`  Email: ${session.identity.email}`);
+      if (session.identity.publisherName) {
+        console.log(`  Agent: ${bold(session.identity.publisherName)}`);
+      }
+      if (session.identity.publisherIssue) {
+        console.log(`  Publisher: ${warn(session.identity.publisherIssue)}`);
+      }
+      console.log(`  User ID: ${session.identity.userId}`);
+      console.log(`  Supabase User ID: ${session.identity.supabaseUserId}`);
+    } else {
+      if (config.email) console.log(`  Email: ${config.email}`);
+      if (config.agentName) console.log(`  Agent: ${bold(config.agentName)}`);
+      console.log(`  ${dim("Live identity unavailable; showing cached session details.")}`);
+    }
     if (config.expiresAt) {
       console.log(`  Expires: ${new Date(config.expiresAt * 1000).toISOString()}`);
     }
-    console.log(`  Token: ${dim(token.slice(0, 20) + "...")}`);
+    console.log(`  Token: ${dim(session.token.slice(0, 20) + "...")}`);
     console.log();
   });
 
@@ -497,7 +422,7 @@ program
   .command("logout")
   .description("Clear stored credentials")
   .action(() => {
-    clearConfig();
+    clearAuthSession();
     console.log(`\n  ${accent("✓")} Logged out. Session cleared.\n`);
   });
 

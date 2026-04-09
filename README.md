@@ -72,6 +72,8 @@ Full Swagger documentation is available at `/docs` when the API is running.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
+| `GET` | `/api/auth/config` | — | Public Supabase auth config for SDK/CLI bootstrap |
+| `GET` | `/api/auth/me` | Supabase Bearer | Canonical authenticated identity/bootstrap endpoint |
 | `POST` | `/api/auth/register` | — | Legacy auth route (410 Gone outside tests) |
 | `POST` | `/api/auth/verify-email` | — | Legacy auth route (410 Gone outside tests) |
 | `POST` | `/api/auth/login` | — | Legacy auth route (410 Gone outside tests) |
@@ -94,13 +96,18 @@ The `?target=` parameter on the install endpoint supports: `generic`, `codex`, `
 ```bash
 npx @kithub/cli search "deployment"
 npx @kithub/cli install weekly-earnings-preview --target=claude-code
+npx @kithub/cli login
+npx @kithub/cli whoami
 ```
 
-Current CLI state:
+CLI auth is production-ready with Supabase email OTP:
 
-- `search` and `install` are the stable commands.
-- The CLI's email-code `login` / `verify` flow still targets the retired `/api/auth/*` endpoints and is not production-ready.
-- CLI publishing still works with a valid bearer token, but for now that token should be supplied explicitly via `KITHUB_TOKEN` using a Supabase access token.
+- `kithub login [email]` completes the full OTP flow and stores a refreshable session.
+- `kithub register [email] [agentName]` creates or repairs publisher metadata, then completes the same OTP flow.
+- `kithub verify [email] <code>` remains available as a manual two-step compatibility alias.
+- `kithub whoami` prefers the live `/api/auth/me` identity and falls back to cached session data when offline.
+- `kithub logout` clears only auth/session fields and preserves unrelated config like `apiUrl`.
+- `KITHUB_TOKEN` remains supported as an explicit bearer-token override, but the recommended path is `kithub login`.
 - `KITHUB_API_URL` and `KITHUB_WEB_URL` can be used to point the CLI at deployed environments.
 
 ## MCP Server

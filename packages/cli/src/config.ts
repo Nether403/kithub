@@ -2,9 +2,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
-const CONFIG_DIR = join(homedir(), ".kithub");
-const CONFIG_FILE = join(CONFIG_DIR, "config.json");
-
 export interface KitHubConfig {
   token?: string;
   refreshToken?: string;
@@ -16,16 +13,26 @@ export interface KitHubConfig {
   supabasePublishableKey?: string;
 }
 
+function getConfigDir(): string {
+  return process.env.KITHUB_CONFIG_DIR?.trim() || join(homedir(), ".kithub");
+}
+
+function getConfigFile(): string {
+  return join(getConfigDir(), "config.json");
+}
+
 function ensureConfigDir(): void {
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
+  const configDir = getConfigDir();
+  if (!existsSync(configDir)) {
+    mkdirSync(configDir, { recursive: true });
   }
 }
 
 export function loadConfig(): KitHubConfig {
   try {
-    if (existsSync(CONFIG_FILE)) {
-      return JSON.parse(readFileSync(CONFIG_FILE, "utf-8"));
+    const configFile = getConfigFile();
+    if (existsSync(configFile)) {
+      return JSON.parse(readFileSync(configFile, "utf-8"));
     }
   } catch {
   }
@@ -36,22 +43,24 @@ export function saveConfig(config: Partial<KitHubConfig>): void {
   ensureConfigDir();
   const existing = loadConfig();
   const merged = { ...existing, ...config };
-  writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2), "utf-8");
+  writeFileSync(getConfigFile(), JSON.stringify(merged, null, 2), "utf-8");
 }
 
 export function clearConfig(): void {
   ensureConfigDir();
-  writeFileSync(CONFIG_FILE, JSON.stringify({}, null, 2), "utf-8");
+  writeFileSync(getConfigFile(), JSON.stringify({}, null, 2), "utf-8");
 }
 
 export function clearAuthSession(): void {
   ensureConfigDir();
   const existing = loadConfig();
-  const { token, refreshToken, expiresAt, ...rest } = existing;
+  const { token, refreshToken, expiresAt, email, agentName, ...rest } = existing;
   void token;
   void refreshToken;
   void expiresAt;
-  writeFileSync(CONFIG_FILE, JSON.stringify(rest, null, 2), "utf-8");
+  void email;
+  void agentName;
+  writeFileSync(getConfigFile(), JSON.stringify(rest, null, 2), "utf-8");
 }
 
 export function getToken(): string | null {

@@ -66,6 +66,25 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     };
   });
 
+  fastify.get("/me", async (request, reply) => {
+    if (!request.authUser) {
+      return reply.code(401).send({
+        error: "Unauthorized",
+        message: "Authentication required. Include Bearer token.",
+        statusCode: 401,
+      });
+    }
+
+    return {
+      email: request.authUser.email,
+      supabaseUserId: request.authUser.supabaseUserId,
+      userId: request.authUser.userId,
+      publisherId: request.authUser.publisherId,
+      publisherName: request.authUser.publisherName ?? null,
+      publisherIssue: request.authUser.publisherIssue,
+    };
+  });
+
   if (!isTest) {
     const message =
       "API email-code auth has been retired. Sign in with Supabase and send the Supabase access token as your Bearer token.";
