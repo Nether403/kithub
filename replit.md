@@ -25,7 +25,10 @@ SkillKitHub is a monorepo for the universal registry of AI agent workflows (Kits
 - `DATABASE_URL` — PostgreSQL connection string (required for database features)
 - `SUPABASE_URL` — Supabase project URL used by the API auth verifier
 - `SUPABASE_SECRET_KEY` — Supabase secret/service-role key used by the API auth verifier
-- `WEB_URL` — Frontend URL for CORS (defaults to http://localhost:3000)
+- `NEXT_PUBLIC_SUPABASE_URL` — Public Supabase URL used by the web app
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Public Supabase browser key used by the web app
+- `NEXT_PUBLIC_API_URL` — API base URL used by the frontend
+- `WEB_URL` — Frontend URL for CORS and notification links (defaults to http://localhost:5000)
 
 ## Package Manager
 - npm (with npm workspaces)
@@ -147,7 +150,9 @@ All API error responses follow a consistent shape:
 - Token persistence: `~/.kithub/config.json` stores token, email, agentName
 - Commands: `search`, `install`, `publish`, `login`, `verify`, `whoami`, `logout`
 - `install` auto-detects target (Cursor, Claude Code, Codex) and writes files to disk
-- `publish` prints live URL after successful publish, exits with code 1 if blocked
+- `publish` prints a live URL after successful publish, exits with code 1 if blocked
+- `login` / `verify` still use the retired email-code API flow and are not production-ready
+- `publish` can still work if `KITHUB_TOKEN` is set to a valid Supabase access token
 
 ## Testing
 
@@ -185,4 +190,6 @@ cd apps/api && npx vitest run         # API tests only
 - Runs automatically after task agent merges
 
 ## Known Issues
-- API auth expects Supabase access tokens; legacy `/api/auth/*` endpoints are test-only and should be migrated before CLI auth is re-enabled
+- API auth expects Supabase access tokens
+- Legacy `/api/auth/*` endpoints are test-only
+- CLI auth commands still need a Supabase-native replacement instead of the retired email-code flow

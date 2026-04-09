@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+# SkillKitHub Web
 
-## Getting Started
+Next.js 16 frontend for the SkillKitHub registry.
 
-First, run the development server:
+## What It Does
+
+- Renders the public registry, skill pages, publisher pages, and kit detail pages
+- Handles Supabase sign-in and session refresh for the web app
+- Sends the active Supabase access token to the API for protected actions like publishing and dashboard access
+
+## Local Development
+
+From the repo root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev --workspace=apps/web
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app runs on `http://localhost:5000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Required Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load Inter, a custom Google Font.
+- `NEXT_PUBLIC_API_URL` or the app cannot talk to the API
+- `NEXT_PUBLIC_SUPABASE_URL` or `SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
 
-## Learn More
+Helpful optional variables:
 
-To learn more about Next.js, take a look at the following resources:
+- `NEXT_PUBLIC_BASE_URL` for metadata and OG image URLs
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Auth Model
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Browser and server components use Supabase via `@supabase/ssr`
+- Session refresh happens through the shared Supabase proxy helper
+- Protected UI actions rely on the API accepting a Supabase bearer token
 
-## Deploy on Vercel
+## Main Routes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `/` marketing homepage
+- `/auth` sign-in page
+- `/dashboard` publisher dashboard
+- `/publish` publish and edit flow
+- `/registry` kit directory
+- `/registry/[slug]` kit detail
+- `/skills` skills directory
+- `/skills/[slug]` skill detail
+- `/publishers/[slug]` publisher profile
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+- Deploy as a separate Vercel project rooted at `apps/web`
+- Point `NEXT_PUBLIC_API_URL` at the deployed API project
+- Set Supabase redirect URLs to the deployed frontend origin

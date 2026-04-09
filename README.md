@@ -43,7 +43,7 @@ npm install
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your DATABASE_URL, SUPABASE_URL, and SUPABASE_SECRET_KEY
+# Edit .env with your database, Supabase, and frontend/API URLs
 
 # Push database schema
 cd packages/db && npm run push && cd ../..
@@ -56,6 +56,13 @@ npm run dev
 ```
 
 The web app runs at `http://localhost:5000` and the API at `http://localhost:8080`.
+
+## Auth And Deployment
+
+- The web app uses Supabase Auth for sign-in and session management.
+- The API expects a Supabase access token in the `Authorization: Bearer ...` header for protected routes.
+- The standard deployment model is two Vercel projects: one for `apps/web` and one for `apps/api`.
+- The API uses `WEB_URL` for CORS and notification links, while the frontend uses `NEXT_PUBLIC_API_URL` to talk to the API.
 
 ## API
 
@@ -87,10 +94,14 @@ The `?target=` parameter on the install endpoint supports: `generic`, `codex`, `
 ```bash
 npx @kithub/cli search "deployment"
 npx @kithub/cli install weekly-earnings-preview --target=claude-code
-npx @kithub/cli publish kit.md
-npx @kithub/cli login user@example.com
-npx @kithub/cli whoami
 ```
+
+Current CLI state:
+
+- `search` and `install` are the stable commands.
+- The CLI's email-code `login` / `verify` flow still targets the retired `/api/auth/*` endpoints and is not production-ready.
+- CLI publishing still works with a valid bearer token, but for now that token should be supplied explicitly via `KITHUB_TOKEN` using a Supabase access token.
+- `KITHUB_API_URL` and `KITHUB_WEB_URL` can be used to point the CLI at deployed environments.
 
 ## MCP Server
 
