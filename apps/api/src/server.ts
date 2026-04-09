@@ -1,4 +1,4 @@
-import createFastify from "fastify";
+import createFastify, { type FastifyError } from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import cors from "@fastify/cors";
@@ -83,7 +83,9 @@ async function start() {
   // ── Global Error Handler ────────────────────────────────────────
   fastify.setErrorHandler((error, request, reply) => {
     fastify.log.error(error);
-    const statusCode = error.statusCode ?? 500;
+
+    const normalizedError = error as FastifyError & Partial<Error>;
+    const statusCode = normalizedError.statusCode ?? 500;
 
     if (statusCode === 429) {
       return reply.code(429).send({
@@ -94,8 +96,8 @@ async function start() {
     }
 
     reply.code(statusCode).send({
-      error: error.name || "Internal Server Error",
-      message: error.message || "An unexpected error occurred.",
+      error: normalizedError.name || "Internal Server Error",
+      message: normalizedError.message || "An unexpected error occurred.",
       statusCode,
     });
   });

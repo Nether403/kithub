@@ -12,8 +12,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.13",
     "@kithub/sdk": "*",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "hono": "^4.12.12",
     "zod": "^3.25.76"
   },
   "devDependencies": {
