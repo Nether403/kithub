@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { KitHubClient } from "@kithub/sdk";
+import { INSTALL_TARGET_DETAILS } from "@kithub/schema";
 
 const client = new KitHubClient();
 const server = new McpServer({
@@ -114,17 +115,10 @@ server.tool(
   "List all supported install targets with descriptions.",
   {},
   async () => {
-    const targets = [
-      { target: "generic", description: "Standard install with bundle metadata, normalized kit.md, and preflight checks" },
-      { target: "codex", description: "OpenAI Codex — generates AGENTS.md-targeted steps, stores under .kithub/" },
-      { target: "claude-code", description: "Anthropic Claude Code — generates CLAUDE.md-targeted steps, stores under .kithub/" },
-      { target: "cursor", description: "Cursor IDE — auto-loads rules/skills into .cursor/ directory" },
-      { target: "mcp", description: "Model Context Protocol — returns MCP-oriented instruction payload" },
-    ];
     return {
       content: [{
         type: "text" as const,
-        text: JSON.stringify(targets, null, 2),
+        text: JSON.stringify(INSTALL_TARGET_DETAILS, null, 2),
       }],
     };
   }

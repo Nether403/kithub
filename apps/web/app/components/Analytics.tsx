@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { fetchWithSupabaseAuth } from "../../lib/api";
 
-interface DailyInstall {
+interface DailyMetric {
   date: string;
   count: number;
 }
@@ -15,14 +15,18 @@ interface TargetBreakdown {
 interface AnalyticsData {
   slug: string;
   totalInstalls: number;
-  dailyInstalls: DailyInstall[];
+  totalViews: number;
+  dailyInstalls: DailyMetric[];
+  dailyViews: DailyMetric[];
   byTarget: TargetBreakdown[];
 }
 
 const TARGET_COLORS: Record<string, string> = {
   "claude-code": "#7c3aed",
+  codex: "#10b981",
   cursor: "#00e88f",
   generic: "#3b82f6",
+  mcp: "#f97316",
   openclaw: "#f59e0b",
   windsurf: "#ec4899",
   cline: "#06b6d4",
@@ -32,17 +36,17 @@ function getTargetColor(target: string): string {
   return TARGET_COLORS[target] || "#6b7280";
 }
 
-function MiniBarChart({ data }: { data: DailyInstall[] }) {
+function MiniBarChart({ data, emptyLabel }: { data: DailyMetric[]; emptyLabel: string }) {
   if (data.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "2rem 0", color: "var(--text-tertiary)", fontSize: "0.85rem" }}>
-        No install data yet
+        {emptyLabel}
       </div>
     );
   }
 
   const today = new Date();
-  const allDays: DailyInstall[] = [];
+  const allDays: DailyMetric[] = [];
   for (let i = 29; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
@@ -159,18 +163,33 @@ export default function AnalyticsDrawer({ slug, onClose }: { slug: string; onClo
           <div className="alert alert-error">{error}</div>
         ) : data ? (
           <>
-            <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--accent)" }}>
-                {data.totalInstalls.toLocaleString()}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+              <div style={{ textAlign: "center", padding: "1rem", borderRadius: "var(--radius-sm)", background: "var(--glass-bg)" }}>
+                <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--accent)" }}>
+                  {data.totalInstalls.toLocaleString()}
+                </div>
+                <div style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>Total Installs</div>
               </div>
-              <div style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>Total Installs</div>
+              <div style={{ textAlign: "center", padding: "1rem", borderRadius: "var(--radius-sm)", background: "var(--glass-bg)" }}>
+                <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                  {data.totalViews.toLocaleString()}
+                </div>
+                <div style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>Total Views</div>
+              </div>
             </div>
 
             <div style={{ marginBottom: "2rem" }}>
               <h3 style={{ fontSize: "0.95rem", marginBottom: "0.75rem", color: "var(--text-secondary)" }}>
                 Installs — Last 30 Days
               </h3>
-              <MiniBarChart data={data.dailyInstalls} />
+              <MiniBarChart data={data.dailyInstalls} emptyLabel="No install data yet" />
+            </div>
+
+            <div style={{ marginBottom: "2rem" }}>
+              <h3 style={{ fontSize: "0.95rem", marginBottom: "0.75rem", color: "var(--text-secondary)" }}>
+                Views — Last 30 Days
+              </h3>
+              <MiniBarChart data={data.dailyViews} emptyLabel="No view data yet" />
             </div>
 
             <div>

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, varchar, integer, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, varchar, integer, jsonb, uniqueIndex, index } from "drizzle-orm/pg-core";
 
 // ── Users & Identity ──────────────────────────────────────────────
 
@@ -84,6 +84,14 @@ export const kitInstallEvents = pgTable("kit_install_events", {
   target: varchar("target").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const kitViewEvents = pgTable("kit_view_events", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  kitSlug: varchar("kit_slug").notNull().references(() => kits.slug),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  kitSlugCreatedAtIdx: index("kit_view_events_kit_slug_created_at_idx").on(table.kitSlug, table.createdAt),
+}));
 
 // ── Learnings ─────────────────────────────────────────────────────
 

@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import { authRoutes } from "../routes/auth";
 import { kitRoutes } from "../routes/kits";
+import { metaRoutes } from "../routes/meta";
 import { authMiddleware } from "../middleware/auth";
 import { db, healthCheck, schema, eq, sql } from "@kithub/db";
 
@@ -17,6 +18,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(authMiddleware);
   app.decorate("db", db);
   await app.register(authRoutes, { prefix: "/api/auth" });
+  await app.register(metaRoutes, { prefix: "/api" });
   await app.register(kitRoutes, { prefix: "/api/kits" });
 
   app.get("/health", async () => {
@@ -52,6 +54,7 @@ export async function cleanupTestData(email: string, kitSlug?: string) {
       }
       await db.delete(schema.kitReleases).where(eq(schema.kitReleases.kitSlug, kitSlug));
       await db.delete(schema.kitInstallEvents).where(eq(schema.kitInstallEvents.kitSlug, kitSlug));
+      await db.delete(schema.kitViewEvents).where(eq(schema.kitViewEvents.kitSlug, kitSlug));
       await db.delete(schema.learnings).where(eq(schema.learnings.kitSlug, kitSlug));
       await db.delete(schema.kitTags).where(eq(schema.kitTags.kitSlug, kitSlug));
       await db.delete(schema.kits).where(eq(schema.kits.slug, kitSlug));

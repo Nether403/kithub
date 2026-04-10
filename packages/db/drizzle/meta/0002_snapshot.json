@@ -1,10 +1,8 @@
 {
-  "id": "76622a4d-7127-41f4-975f-685d93c6e975",
-  "prevId": "08490607-c2da-4fbf-a0af-4f0106500af6",
-  "version": "5",
-  "dialect": "pg",
+  "version": "7",
+  "dialect": "postgresql",
   "tables": {
-    "email_verification_codes": {
+    "public.email_verification_codes": {
       "name": "email_verification_codes",
       "schema": "",
       "columns": {
@@ -45,21 +43,24 @@
         "email_verification_codes_user_id_users_id_fk": {
           "name": "email_verification_codes_user_id_users_id_fk",
           "tableFrom": "email_verification_codes",
-          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
+          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "kit_install_events": {
+    "public.kit_install_events": {
       "name": "kit_install_events",
       "schema": "",
       "columns": {
@@ -94,21 +95,24 @@
         "kit_install_events_kit_slug_kits_slug_fk": {
           "name": "kit_install_events_kit_slug_kits_slug_fk",
           "tableFrom": "kit_install_events",
-          "tableTo": "kits",
           "columnsFrom": [
             "kit_slug"
           ],
+          "tableTo": "kits",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "kit_release_scans": {
+    "public.kit_release_scans": {
       "name": "kit_release_scans",
       "schema": "",
       "columns": {
@@ -155,21 +159,24 @@
         "kit_release_scans_release_id_kit_releases_id_fk": {
           "name": "kit_release_scans_release_id_kit_releases_id_fk",
           "tableFrom": "kit_release_scans",
-          "tableTo": "kit_releases",
           "columnsFrom": [
             "release_id"
           ],
+          "tableTo": "kit_releases",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "kit_releases": {
+    "public.kit_releases": {
       "name": "kit_releases",
       "schema": "",
       "columns": {
@@ -220,33 +227,49 @@
       },
       "indexes": {
         "kit_release_unique_version": {
-          "name": "kit_release_unique_version",
           "columns": [
-            "kit_slug",
-            "version"
+            {
+              "expression": "kit_slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "version",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
           ],
-          "isUnique": true
+          "with": {},
+          "name": "kit_release_unique_version",
+          "isUnique": true,
+          "method": "btree",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "kit_releases_kit_slug_kits_slug_fk": {
           "name": "kit_releases_kit_slug_kits_slug_fk",
           "tableFrom": "kit_releases",
-          "tableTo": "kits",
           "columnsFrom": [
             "kit_slug"
           ],
+          "tableTo": "kits",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "kit_tags": {
+    "public.kit_tags": {
       "name": "kit_tags",
       "schema": "",
       "columns": {
@@ -274,21 +297,24 @@
         "kit_tags_kit_slug_kits_slug_fk": {
           "name": "kit_tags_kit_slug_kits_slug_fk",
           "tableFrom": "kit_tags",
-          "tableTo": "kits",
           "columnsFrom": [
             "kit_slug"
           ],
+          "tableTo": "kits",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "kits": {
+    "public.kits": {
       "name": "kits",
       "schema": "",
       "columns": {
@@ -348,21 +374,24 @@
         "kits_publisher_id_publisher_profiles_id_fk": {
           "name": "kits_publisher_id_publisher_profiles_id_fk",
           "tableFrom": "kits",
-          "tableTo": "publisher_profiles",
           "columnsFrom": [
             "publisher_id"
           ],
+          "tableTo": "publisher_profiles",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "learnings": {
+    "public.learnings": {
       "name": "learnings",
       "schema": "",
       "columns": {
@@ -403,21 +432,24 @@
         "learnings_kit_slug_kits_slug_fk": {
           "name": "learnings_kit_slug_kits_slug_fk",
           "tableFrom": "learnings",
-          "tableTo": "kits",
           "columnsFrom": [
             "kit_slug"
           ],
+          "tableTo": "kits",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "notification_logs": {
+    "public.notification_logs": {
       "name": "notification_logs",
       "schema": "",
       "columns": {
@@ -458,34 +490,37 @@
         "notification_logs_publisher_id_publisher_profiles_id_fk": {
           "name": "notification_logs_publisher_id_publisher_profiles_id_fk",
           "tableFrom": "notification_logs",
-          "tableTo": "publisher_profiles",
           "columnsFrom": [
             "publisher_id"
           ],
+          "tableTo": "publisher_profiles",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "notification_logs_kit_slug_kits_slug_fk": {
           "name": "notification_logs_kit_slug_kits_slug_fk",
           "tableFrom": "notification_logs",
-          "tableTo": "kits",
           "columnsFrom": [
             "kit_slug"
           ],
+          "tableTo": "kits",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "publisher_profiles": {
+    "public.publisher_profiles": {
       "name": "publisher_profiles",
       "schema": "",
       "columns": {
@@ -520,36 +555,39 @@
         "publisher_profiles_user_id_users_id_fk": {
           "name": "publisher_profiles_user_id_users_id_fk",
           "tableFrom": "publisher_profiles",
-          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
+          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "publisher_profiles_user_id_unique": {
           "name": "publisher_profiles_user_id_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "user_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         },
         "publisher_profiles_agent_name_unique": {
           "name": "publisher_profiles_agent_name_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "agent_name"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
-      }
+      },
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "skill_tags": {
+    "public.skill_tags": {
       "name": "skill_tags",
       "schema": "",
       "columns": {
@@ -574,33 +612,49 @@
       },
       "indexes": {
         "skill_tag_unique": {
-          "name": "skill_tag_unique",
           "columns": [
-            "skill_slug",
-            "tag"
+            {
+              "expression": "skill_slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tag",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
           ],
-          "isUnique": true
+          "with": {},
+          "name": "skill_tag_unique",
+          "isUnique": true,
+          "method": "btree",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "skill_tags_skill_slug_skills_slug_fk": {
           "name": "skill_tags_skill_slug_skills_slug_fk",
           "tableFrom": "skill_tags",
-          "tableTo": "skills",
           "columnsFrom": [
             "skill_slug"
           ],
+          "tableTo": "skills",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "skills": {
+    "public.skills": {
       "name": "skills",
       "schema": "",
       "columns": {
@@ -675,21 +729,24 @@
         "skills_publisher_id_publisher_profiles_id_fk": {
           "name": "skills_publisher_id_publisher_profiles_id_fk",
           "tableFrom": "skills",
-          "tableTo": "publisher_profiles",
           "columnsFrom": [
             "publisher_id"
           ],
+          "tableTo": "publisher_profiles",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     },
-    "users": {
+    "public.users": {
       "name": "users",
       "schema": "",
       "columns": {
@@ -731,26 +788,35 @@
       "uniqueConstraints": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "email"
-          ]
+          ],
+          "nullsNotDistinct": false
         },
         "users_supabase_user_id_unique": {
           "name": "users_supabase_user_id_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "supabase_user_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
-      }
+      },
+      "policies": {},
+      "isRLSEnabled": false,
+      "checkConstraints": {}
     }
   },
   "enums": {},
   "schemas": {},
   "_meta": {
-    "columns": {},
     "schemas": {},
-    "tables": {}
-  }
+    "tables": {},
+    "columns": {}
+  },
+  "id": "76622a4d-7127-41f4-975f-685d93c6e975",
+  "prevId": "08490607-c2da-4fbf-a0af-4f0106500af6",
+  "sequences": {},
+  "policies": {},
+  "views": {},
+  "roles": {}
 }

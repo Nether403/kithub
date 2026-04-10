@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import VersionHistory from "./VersionHistory";
+import ViewTracker from "./ViewTracker";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -66,6 +67,7 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
 
   return (
     <main className="container" style={{ paddingTop: '3rem', paddingBottom: '4rem' }}>
+      <ViewTracker slug={slug} />
       <div style={{ marginBottom: '2.5rem' }}>
         <Link href="/registry" style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
           ← Back to Registry

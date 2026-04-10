@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "installCommand": "cd ../.. && npm install",
+  "buildCommand": "cd ../.. && npm run build --workspace=apps/api",
+  "regions": ["iad1"]
+}

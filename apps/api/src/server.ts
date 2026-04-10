@@ -5,6 +5,7 @@ import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { authRoutes } from "./routes/auth";
 import { kitRoutes } from "./routes/kits";
+import { metaRoutes } from "./routes/meta";
 import { publisherRoutes } from "./routes/publishers";
 import { skillRoutes } from "./routes/skills";
 import { authMiddleware } from "./middleware/auth";
@@ -61,6 +62,7 @@ async function start() {
 
   // ── Routes ──────────────────────────────────────────────────────
   await fastify.register(authRoutes, { prefix: "/api/auth" });
+  await fastify.register(metaRoutes, { prefix: "/api" });
   await fastify.register(kitRoutes, { prefix: "/api/kits" });
   await fastify.register(publisherRoutes, { prefix: "/api/publishers" });
   await fastify.register(skillRoutes, { prefix: "/api/skills" });

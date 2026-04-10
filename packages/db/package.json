@@ -12,9 +12,9 @@
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
     "check-types": "tsc --noEmit",
-    "migrate": "drizzle-kit push:pg",
-    "push": "drizzle-kit push:pg",
-    "generate": "drizzle-kit generate:pg",
+    "migrate": "drizzle-kit push",
+    "push": "drizzle-kit push",
+    "generate": "drizzle-kit generate",
     "seed": "tsx src/seed.ts",
     "seed:skills": "tsx src/seed-skills.ts",
     "seed:journeykits": "tsx src/seed-journeykits.ts"

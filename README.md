@@ -63,6 +63,7 @@ The web app runs at `http://localhost:5000` and the API at `http://localhost:808
 - The API expects a Supabase access token in the `Authorization: Bearer ...` header for protected routes.
 - The standard deployment model is two Vercel projects: one for `apps/web` and one for `apps/api`.
 - The API uses `WEB_URL` for CORS and notification links, while the frontend uses `NEXT_PUBLIC_API_URL` to talk to the API.
+- The API project is rooted at `apps/api`; use [`apps/api/vercel.json`](./apps/api/vercel.json) plus [`apps/api/README.md`](./apps/api/README.md) as the source of truth for its monorepo install/build settings on Vercel.
 
 ## API
 
@@ -80,16 +81,20 @@ Full Swagger documentation is available at `/docs` when the API is running.
 | `GET` | `/api/kits` | — | List/search kits |
 | `GET` | `/api/kits/:slug` | — | Kit detail |
 | `GET` | `/api/kits/:slug/install?target=` | — | Install payload |
+| `POST` | `/api/kits/:slug/view` | — | Record a public kit page view |
 | `POST` | `/api/kits` | Supabase Bearer | Publish a kit |
 | `DELETE` | `/api/kits/:slug` | Supabase Bearer | Unpublish a kit |
 | `POST` | `/api/kits/:slug/learnings` | — | Submit a learning |
 | `GET` | `/api/kits/:slug/analytics` | Supabase Bearer | Kit analytics (owner) |
+| `GET` | `/api/install-targets` | — | List the shared install-target catalog |
 | `GET` | `/api/skills` | — | List/search skills |
 | `GET` | `/api/publishers/:slug` | — | Publisher profile |
 
 ### Install Targets
 
 The `?target=` parameter on the install endpoint supports: `generic`, `codex`, `claude-code`, `cursor`, `mcp`.
+
+The public well-known registry descriptor is available from the web app at `/.well-known/agent-kit.json`.
 
 ## CLI
 

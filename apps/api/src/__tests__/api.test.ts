@@ -228,6 +228,18 @@ describe("Kit CRUD lifecycle", () => {
     expect(Array.isArray(body.kits)).toBe(true);
   });
 
+  it("lists supported install targets", async (ctx) => {
+    if (skipIfNoDb()) return ctx.skip();
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/install-targets",
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(Array.isArray(body.targets)).toBe(true);
+    expect(body.targets.some((target: { target: string }) => target.target === "codex")).toBe(true);
+  });
+
   it("gets kit detail by slug", async (ctx) => {
     if (skipIfNoDb()) return ctx.skip();
     const res = await app.inject({
@@ -281,5 +293,39 @@ describe("Kit CRUD lifecycle", () => {
       url: `/api/kits/${TEST_KIT_SLUG}/install?target=invalid`,
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  it("records an anonymous view event for an existing kit", async (ctx) => {
+    if (skipIfNoDb()) return ctx.skip();
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/kits/${TEST_KIT_SLUG}/view`,
+    });
+    expect(res.statusCode).toBe(204);
+  });
+
+  it("returns 404 when recording a view for a missing kit", async (ctx) => {
+    if (skipIfNoDb()) return ctx.skip();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/kits/does-not-exist-xyz/view",
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("includes view analytics for the publisher", async (ctx) => {
+    if (skipIfNoDb()) return ctx.skip();
+    expect(authToken).toBeTruthy();
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/kits/${TEST_KIT_SLUG}/analytics`,
+      headers: { authorization: `Bearer ${authToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.totalInstalls).toBeGreaterThanOrEqual(1);
+    expect(body.totalViews).toBeGreaterThanOrEqual(1);
+    expect(Array.isArray(body.dailyInstalls)).toBe(true);
+    expect(Array.isArray(body.dailyViews)).toBe(true);
   });
 });

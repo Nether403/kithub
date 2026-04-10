@@ -27,19 +27,15 @@ const SearchQuerySchema = z.object({
 import {
   db, schema, eq, desc, sql,
   getKitBySlug, getLatestRelease, getLatestScan,
-  getLearningsCount, getInstallCount,
+  getLearningsCount, getInstallCount, getViewCount,
   searchKitsPaginated, getTrendingKits, getAllReleases,
   getKitsByPublisherId, getEnrichedKitBySlug,
-  getDailyInstalls, getInstallsByTarget,
+  getDailyInstalls, getDailyViews, getInstallsByTarget,
 } from "@kithub/db";
-import { parseKitMd } from "@kithub/schema";
-import { scanKit } from "@kithub/schema/dist/scanner";
+import { generateInstallPayload, isValidTarget, parseKitMd, scanKit, SUPPORTED_TARGETS } from "@kithub/schema";
 import {
-  generateInstallPayload,
-  isValidTarget,
-  SUPPORTED_TARGETS,
-} from "@kithub/schema/dist/targets";
-import { requirePublisher, type JwtUser } from "../middleware/auth";
+  requirePublisher, type JwtUser,
+} from "../middleware/auth";
 import { notifyOnInstall, notifyOnLearning } from "../services/notifications";
 
 export const kitRoutes: FastifyPluginAsync = async (fastify) => {
@@ -439,6 +435,32 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     return { status: "submitted", kitSlug: slug, totalLearnings: count };
   });
 
+  fastify.post("/:slug/view", async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
+
+    const kit = await getKitBySlug(slug);
+    if (!kit || kit.unpublishedAt) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: `Kit "${slug}" not found.`,
+        statusCode: 404,
+      });
+    }
+
+    await db.insert(schema.kitViewEvents).values({
+      kitSlug: slug,
+    });
+
+    return reply.code(204).send();
+  });
+
   fastify.get("/:slug/analytics", { preHandler: [requirePublisher] }, async (request, reply) => {
     const { slug } = request.params as { slug: string };
     if (!db) {
@@ -467,16 +489,20 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const [dailyInstalls, byTarget, totalInstalls] = await Promise.all([
+    const [dailyInstalls, dailyViews, byTarget, totalInstalls, totalViews] = await Promise.all([
       getDailyInstalls(slug, 30),
+      getDailyViews(slug, 30),
       getInstallsByTarget(slug),
       getInstallCount(slug),
+      getViewCount(slug),
     ]);
 
     return {
       slug,
       totalInstalls,
+      totalViews,
       dailyInstalls,
+      dailyViews,
       byTarget,
     };
   });

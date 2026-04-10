@@ -7,6 +7,34 @@ import type { KitFrontmatter, KitInstallPayload } from "./index";
 export const SUPPORTED_TARGETS = ["generic", "codex", "claude-code", "cursor", "mcp"] as const;
 export type InstallTarget = typeof SUPPORTED_TARGETS[number];
 
+export interface InstallTargetDescriptor {
+  target: InstallTarget;
+  description: string;
+}
+
+export const INSTALL_TARGET_DETAILS: InstallTargetDescriptor[] = [
+  {
+    target: "generic",
+    description: "Standard install with bundle metadata, normalized kit.md, and preflight checks",
+  },
+  {
+    target: "codex",
+    description: "OpenAI Codex install flow targeting AGENTS.md and .kithub workspace files",
+  },
+  {
+    target: "claude-code",
+    description: "Anthropic Claude Code install flow targeting CLAUDE.md and .kithub workspace files",
+  },
+  {
+    target: "cursor",
+    description: "Cursor IDE install flow targeting .cursor rules and kit assets",
+  },
+  {
+    target: "mcp",
+    description: "Model Context Protocol install flow returning MCP-oriented configuration payloads",
+  },
+];
+
 export function isValidTarget(target: string): target is InstallTarget {
   return SUPPORTED_TARGETS.includes(target as InstallTarget);
 }

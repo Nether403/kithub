@@ -106,6 +106,15 @@ export async function getInstallCount(kitSlug: string): Promise<number> {
   return Number(result?.count ?? 0);
 }
 
+export async function getViewCount(kitSlug: string): Promise<number> {
+  if (!db) throw new Error("Database not connected");
+  const [result] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.kitViewEvents)
+    .where(eq(schema.kitViewEvents.kitSlug, kitSlug));
+  return Number(result?.count ?? 0);
+}
+
 export async function getLearningsCount(kitSlug: string): Promise<number> {
   if (!db) throw new Error("Database not connected");
   const [result] = await db
@@ -725,6 +734,30 @@ export async function getDailyInstalls(kitSlug: string, days: number = 30) {
     )
     .groupBy(sql`date(${schema.kitInstallEvents.createdAt})`)
     .orderBy(sql`date(${schema.kitInstallEvents.createdAt})`);
+
+  return rows.map(r => ({ date: String(r.date), count: Number(r.count) }));
+}
+
+export async function getDailyViews(kitSlug: string, days: number = 30) {
+  if (!db) throw new Error("Database not connected");
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString();
+
+  const rows = await db
+    .select({
+      date: sql<string>`date(${schema.kitViewEvents.createdAt})`,
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.kitViewEvents)
+    .where(
+      and(
+        eq(schema.kitViewEvents.kitSlug, kitSlug),
+        sql`${schema.kitViewEvents.createdAt} >= ${cutoffStr}::timestamp`
+      )
+    )
+    .groupBy(sql`date(${schema.kitViewEvents.createdAt})`)
+    .orderBy(sql`date(${schema.kitViewEvents.createdAt})`);
 
   return rows.map(r => ({ date: String(r.date), count: Number(r.count) }));
 }
