@@ -169,8 +169,10 @@ All API error responses follow a consistent shape:
 - `install` auto-detects target (Cursor, Claude Code, Codex) and writes files to disk
 - `install-collection <slug>` fetches the collection bundle and installs every kit in order, with `--target=<t>` and `--dry-run` flags
 - `publish` prints a live URL after successful publish, exits with code 1 if blocked
-- `login` / `verify` still use the retired email-code API flow and are not production-ready
-- `publish` can still work if `KITHUB_TOKEN` is set to a valid Supabase access token
+- `login` / `register` / `verify` are **Supabase-native**: the SDK fetches `/api/auth/config` for the public Supabase URL + anon key, then calls `supabase.auth.signInWithOtp` and `supabase.auth.verifyOtp` directly. The Supabase access token + refresh token are persisted to `~/.kithub/config.json` and sent as the Bearer token to the API.
+- `register` passes `agentName` via Supabase user metadata (`options.data.agentName`) so the API auto-provisions the publisher profile from the first authenticated request.
+- `resolveAuthSession` auto-refreshes expired Supabase sessions via the stored refresh token; legacy single-token configs are cleared on first run.
+- `publish` also accepts `KITHUB_TOKEN` env var (must be a valid Supabase access token) for non-interactive CI usage.
 
 ## Testing
 
@@ -216,6 +218,6 @@ cd apps/api && npx vitest run         # API tests only
 - Runs automatically after task agent merges
 
 ## Known Issues
-- API auth expects Supabase access tokens
-- Legacy `/api/auth/*` endpoints are test-only
-- CLI auth commands still need a Supabase-native replacement instead of the retired email-code flow
+- API auth expects Supabase access tokens; legacy `/api/auth/{register,verify-email,login}` endpoints return 410 Gone outside of test mode (test mode keeps the legacy email-code flow alive only so `apps/api/src/__tests__/auth.test.ts` can exercise the JWT issuance path).
+- Anonymous endpoints exempted from auth: all `GET /api/{kits,publishers,skills,collections,install-targets}/*` (excluding `/api/kits/mine`), plus `POST /api/kits/:slug/view` so unauthenticated view tracking works for the analytics rollup. See `apps/api/src/middleware/auth.ts`.
+- Migration `0004_discovery_trust_v1.sql` is **defensive**: all `CREATE TABLE`, `ADD COLUMN`, and `CREATE INDEX` statements use `IF NOT EXISTS`; foreign-key `ADD CONSTRAINT` statements are wrapped in `DO $$ … EXCEPTION WHEN duplicate_object THEN null; END $$` blocks so re-running the migration on an existing Discovery & Trust schema is a no-op.
