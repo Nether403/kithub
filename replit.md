@@ -57,7 +57,9 @@ npx turbo run build --filter=@kithub/schema --filter=@kithub/sdk --filter=@kithu
 - All design tokens in `apps/web/app/globals.css` (~2200 lines)
 
 ### Personality patterns (post-overhaul)
-- Hero: `.status-pill` (live dot + indexed count), gradient `.accent-word` in title, `.hero-stats` strip (Kits/Collections/Publishers/Installs)
+- Hero: `.status-pill` (live dot + indexed count), gradient `.accent-word` in title, `.hero-stats` strip (Kits Indexed / Curated Stacks / Agent Targets / Kit Spec — sourced only from accurate API counts plus static facts)
+- Stretched-link cards: `.kit-card-stretched` + `.kit-card-title-link::after` covers the whole card; sibling `.kit-publisher-link` has higher z-index; decorative chips use `pointer-events: none` so the whole card area still navigates
+- Reduced-motion media query disables animations/transitions for `prefers-reduced-motion: reduce`
 - Section eyebrows: `.eyebrow` + `.eyebrow-num` + `.eyebrow-bar` for orientation
 - Pill nav: `.nav-link` rounds on hover, active state is filled green pill
 - Kit cards: mono `.kit-id-eyebrow` (publisher/slug), gradient left-edge on hover

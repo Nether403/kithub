@@ -1178,12 +1178,20 @@ a:hover { opacity: 0.85; }
   outline-offset: -4px;
 }
 
-.kit-card-stretched .kit-publisher-link,
+/* Publisher link must remain interactive (sits above stretched overlay). */
+.kit-card-stretched .kit-publisher-link {
+  position: relative;
+  z-index: 2;
+}
+
+/* Decorative chips/badges visually layered above the stretched overlay,   */
+/* but pointer-events disabled so the whole card area still navigates.     */
 .kit-card-stretched .tag-chip,
 .kit-card-stretched .stat-counter,
 .kit-card-stretched .score-badge {
   position: relative;
   z-index: 2;
+  pointer-events: none;
 }
 
 .kit-publisher-link {
@@ -2165,6 +2173,24 @@ label {
   padding-top: 1rem;
   border-top: 1px solid var(--border);
   margin-top: 1rem;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  body::before,
+  body::after {
+    animation: none !important;
+  }
 }
 
 /* ── Responsive ────────────────────────────────────────────────── */
