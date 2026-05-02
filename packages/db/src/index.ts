@@ -25,12 +25,14 @@ if (!connectionString && !hasPgEnv) {
   console.warn("[kithub/db] No database credentials found — database calls will fail at runtime");
 }
 
+// Detect Replit's internal Postgres (helium) which doesn't use TLS
+const isReplitHelium = (connectionString ?? process.env.PGHOST ?? "").includes("helium");
+
 let client: ReturnType<typeof postgres> | null = null;
 if (connectionString) {
   client = postgres(connectionString, {
     max: 10,
-    // Supabase requires SSL; "require" works for both Supabase and local PG
-    ssl: process.env.NODE_ENV === "production" ? "require" : false,
+    ssl: isReplitHelium ? false : (process.env.NODE_ENV === "production" ? "require" : false),
   });
 } else if (hasPgEnv) {
   client = postgres({
@@ -40,7 +42,7 @@ if (connectionString) {
     username: process.env.PGUSER,
     password: process.env.PGPASSWORD,
     max: 10,
-    ssl: "require",
+    ssl: isReplitHelium ? false : "require",
   });
 }
 

@@ -66,3 +66,6 @@ NEXT_PUBLIC_API_URL = "https://98994a5b-5bd7-4289-b136-812522f5eb53-00-1q8u9pntv
 NEXT_PUBLIC_BASE_URL = "https://98994a5b-5bd7-4289-b136-812522f5eb53-00-1q8u9pntvmsvs.riker.replit.dev"
 NODE_ENV = "development"
 PORT = "8080"
+
+[deployment]
+deploymentTarget = "cloudrun"

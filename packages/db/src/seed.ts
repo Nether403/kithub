@@ -13,7 +13,8 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const client = postgres(connectionString);
+const isReplitHelium = connectionString.includes("helium");
+const client = postgres(connectionString, { ssl: isReplitHelium ? false : "require" });
 const db = drizzle(client, { schema });
 
 async function seed() {
@@ -127,14 +128,7 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
     score: 9,
     findings: [{ type: "tip", message: "Consider adding a fileManifest for Full conformance" }],
     status: "passed",
-  }).onConflictDoUpdate({
-    target: schema.kitReleaseScans.releaseId,
-    set: {
-      score: 9,
-      findings: [{ type: "tip", message: "Consider adding a fileManifest for Full conformance" }],
-      status: "passed",
-    },
-  });
+  }).onConflictDoNothing();
 
   const [weeklyInstalls] = await db
     .select({ count: sql<number>`count(*)` })
@@ -178,14 +172,7 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
   await db.insert(schema.kitReleaseScans).values({
     releaseId: rel2Id, score: 8,
     findings: [], status: "passed",
-  }).onConflictDoUpdate({
-    target: schema.kitReleaseScans.releaseId,
-    set: {
-      score: 8,
-      findings: [],
-      status: "passed",
-    },
-  });
+  }).onConflictDoNothing();
 
   const [slackInstalls] = await db
     .select({ count: sql<number>`count(*)` })
@@ -228,14 +215,7 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
   await db.insert(schema.kitReleaseScans).values({
     releaseId: rel3Id, score: 10,
     findings: [], status: "passed",
-  }).onConflictDoUpdate({
-    target: schema.kitReleaseScans.releaseId,
-    set: {
-      score: 10,
-      findings: [],
-      status: "passed",
-    },
-  });
+  }).onConflictDoNothing();
 
   const [reviewerInstalls] = await db
     .select({ count: sql<number>`count(*)` })
