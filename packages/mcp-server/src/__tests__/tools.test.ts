@@ -1,25 +1,30 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
+import { SUPPORTED_TARGETS } from "@kithub/schema";
+import {
+  SearchKitsInput,
+  GetRelatedKitsInput,
+  ListCollectionsInput,
+  GetCollectionInput,
+  GetKitDetailInput,
+  InstallKitInput,
+} from "../schemas.js";
 
 // ─────────────────────────────────────────────────────────────────────
 // MCP tool contract tests
 //
-// We import the tool definitions directly from the MCP server source so
-// we can assert the schemas (names, descriptions, input shapes) without
-// spinning up a stdio transport. This guards against breaking changes
-// to MCP tool contracts that downstream agents depend on.
+// Validates the actual zod schemas exported from `../schemas.ts` —
+// the same objects the running MCP server registers with each tool.
+// Guards against silent contract drift for downstream agents.
 // ─────────────────────────────────────────────────────────────────────
 
-// SUPPORTED_TARGETS is the canonical list of harness targets the platform supports.
-import { SUPPORTED_TARGETS } from "@kithub/schema";
+function wrap(shape: Record<string, z.ZodTypeAny>) {
+  return z.object(shape);
+}
 
-describe("MCP tool input schemas", () => {
+describe("MCP tool input schemas (live exports)", () => {
   describe("search_kits", () => {
-    const schema = z.object({
-      query: z.string().optional(),
-      mode: z.enum(["keyword", "semantic"]).optional(),
-      limit: z.number().int().min(1).max(50).optional(),
-    });
+    const schema = wrap(SearchKitsInput);
 
     it("accepts an empty payload (all fields optional)", () => {
       expect(() => schema.parse({})).not.toThrow();
@@ -31,70 +36,100 @@ describe("MCP tool input schemas", () => {
     });
 
     it("rejects unknown mode values", () => {
-      expect(() => schema.parse({ mode: "fuzzy" as any })).toThrow();
+      const result = schema.safeParse({ mode: "fuzzy" });
+      expect(result.success).toBe(false);
     });
 
     it("rejects out-of-range limits", () => {
-      expect(() => schema.parse({ limit: 0 })).toThrow();
-      expect(() => schema.parse({ limit: 51 })).toThrow();
-      expect(() => schema.parse({ limit: 25 })).not.toThrow();
+      expect(schema.safeParse({ limit: 0 }).success).toBe(false);
+      expect(schema.safeParse({ limit: 51 }).success).toBe(false);
+      expect(schema.safeParse({ limit: 25 }).success).toBe(true);
     });
   });
 
   describe("get_related_kits", () => {
-    const schema = z.object({
-      slug: z.string(),
-      limit: z.number().int().min(1).max(20).optional(),
-    });
+    const schema = wrap(GetRelatedKitsInput);
 
     it("requires slug", () => {
-      expect(() => schema.parse({})).toThrow();
-      expect(() => schema.parse({ slug: "github-pr-reviewer" })).not.toThrow();
+      expect(schema.safeParse({}).success).toBe(false);
+      expect(schema.safeParse({ slug: "github-pr-reviewer" }).success).toBe(true);
     });
 
     it("rejects out-of-range limits", () => {
-      expect(() => schema.parse({ slug: "x", limit: 0 })).toThrow();
-      expect(() => schema.parse({ slug: "x", limit: 21 })).toThrow();
-      expect(() => schema.parse({ slug: "x", limit: 6 })).not.toThrow();
+      expect(schema.safeParse({ slug: "x", limit: 0 }).success).toBe(false);
+      expect(schema.safeParse({ slug: "x", limit: 21 }).success).toBe(false);
+      expect(schema.safeParse({ slug: "x", limit: 6 }).success).toBe(true);
     });
   });
 
   describe("list_collections", () => {
-    const schema = z.object({});
+    const schema = wrap(ListCollectionsInput);
     it("accepts empty payload", () => {
       expect(() => schema.parse({})).not.toThrow();
     });
   });
 
   describe("get_collection", () => {
-    const schema = z.object({
-      slug: z.string(),
-      target: z.enum(SUPPORTED_TARGETS as unknown as [string, ...string[]]).optional(),
-    });
+    const schema = wrap(GetCollectionInput);
 
     it("requires slug", () => {
-      expect(() => schema.parse({})).toThrow();
+      expect(schema.safeParse({}).success).toBe(false);
     });
 
     it("accepts every SUPPORTED_TARGETS value", () => {
       for (const t of SUPPORTED_TARGETS) {
-        expect(() => schema.parse({ slug: "indie-hacker-starter", target: t })).not.toThrow();
+        const result = schema.safeParse({ slug: "indie-hacker-starter", target: t });
+        expect(result.success).toBe(true);
       }
     });
 
     it("rejects unsupported target values", () => {
-      expect(() =>
-        schema.parse({ slug: "indie-hacker-starter", target: "totally-fake-agent" as any })
-      ).toThrow();
+      const result = schema.safeParse({
+        slug: "indie-hacker-starter",
+        target: "totally-fake-agent",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts includeInstall flag", () => {
+      expect(schema.safeParse({ slug: "x", includeInstall: true }).success).toBe(true);
+      expect(schema.safeParse({ slug: "x", includeInstall: "yes" }).success).toBe(false);
+    });
+  });
+
+  describe("get_kit_detail", () => {
+    const schema = wrap(GetKitDetailInput);
+    it("requires slug", () => {
+      expect(schema.safeParse({}).success).toBe(false);
+      expect(schema.safeParse({ slug: "x" }).success).toBe(true);
+    });
+  });
+
+  describe("install_kit", () => {
+    const schema = wrap(InstallKitInput);
+
+    it("requires both slug and target", () => {
+      expect(schema.safeParse({ slug: "x" }).success).toBe(false);
+      expect(schema.safeParse({ target: "cursor" }).success).toBe(false);
+    });
+
+    it("accepts every SUPPORTED_TARGETS value", () => {
+      for (const t of SUPPORTED_TARGETS) {
+        expect(schema.safeParse({ slug: "x", target: t }).success).toBe(true);
+      }
+    });
+
+    it("rejects unsupported targets", () => {
+      expect(schema.safeParse({ slug: "x", target: "fake" }).success).toBe(false);
     });
   });
 });
 
-describe("MCP server module loads", () => {
-  it("imports without side effects beyond stdio", async () => {
-    // The server module instantiates a McpServer. We just verify imports resolve.
-    const mod = await import("../index.js").catch(() => null);
-    // Module may not be importable as ESM in test runner; treat absence as non-fatal.
-    expect(mod === null || typeof mod === "object").toBe(true);
+describe("MCP server module loads without throwing", () => {
+  it("imports the registered tool definitions module", async () => {
+    const mod = await import("../schemas.js");
+    expect(mod.SearchKitsInput).toBeTruthy();
+    expect(mod.GetCollectionInput).toBeTruthy();
+    expect(mod.InstallKitInput).toBeTruthy();
   });
 });

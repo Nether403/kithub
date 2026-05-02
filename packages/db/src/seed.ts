@@ -346,25 +346,30 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
   if (process.env.OPENAI_API_KEY) {
     try {
       const { upsertKitEmbedding } = await import("./discovery.js");
-      const allKits = await db.select().from(schema.kits);
-      for (const k of allKits) {
-        const [release] = await db.select().from(schema.kitReleases)
-          .where(eq(schema.kitReleases.kitSlug, k.slug))
-          .orderBy(sql`${schema.kitReleases.createdAt} desc`)
-          .limit(1);
-        const tags = await db.select().from(schema.kitTags)
-          .where(eq(schema.kitTags.kitSlug, k.slug));
-        const result = await upsertKitEmbedding(db as any, {
-          kitSlug: k.slug,
-          releaseId: release?.id ?? null,
-          title: k.title,
-          summary: k.summary,
-          tags: tags.map(t => t.tag),
-          body: release?.rawMarkdown,
-        });
-        console.log(`  · ${k.slug}: ${result.status}${result.reason ? ` (${result.reason})` : ""}`);
+      const { db: liveDb } = await import("./index.js");
+      if (!liveDb) {
+        console.warn("⚠️  Embedding backfill skipped: shared db handle unavailable.");
+      } else {
+        const allKits = await liveDb.select().from(schema.kits);
+        for (const k of allKits) {
+          const [release] = await liveDb.select().from(schema.kitReleases)
+            .where(eq(schema.kitReleases.kitSlug, k.slug))
+            .orderBy(sql`${schema.kitReleases.createdAt} desc`)
+            .limit(1);
+          const tags = await liveDb.select().from(schema.kitTags)
+            .where(eq(schema.kitTags.kitSlug, k.slug));
+          const result = await upsertKitEmbedding(liveDb, {
+            kitSlug: k.slug,
+            releaseId: release?.id ?? null,
+            title: k.title,
+            summary: k.summary,
+            tags: tags.map(t => t.tag),
+            body: release?.rawMarkdown,
+          });
+          console.log(`  · ${k.slug}: ${result.status}${result.reason ? ` (${result.reason})` : ""}`);
+        }
+        console.log("✅ Embedding backfill complete\n");
       }
-      console.log("✅ Embedding backfill complete\n");
     } catch (err) {
       console.warn("⚠️  Embedding backfill skipped:", (err as Error).message);
     }
