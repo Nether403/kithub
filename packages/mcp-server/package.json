@@ -9,7 +9,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.13",
@@ -19,7 +20,9 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@kithub/schema": "^0.1.0",
     "@repo/typescript-config": "*",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.6.1"
   }
 }

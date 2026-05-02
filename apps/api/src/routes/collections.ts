@@ -125,10 +125,14 @@ export const collectionRoutes: FastifyPluginAsync = async (fastify) => {
     const targetSuffix = target ? `?target=${encodeURIComponent(target)}` : "";
 
     const installUrls = orderedSlugs.map((s) => `${apiBase}/kits/${s}/install${targetSuffix}`);
+    const cliCommand = `npx @kithub/cli install-collection ${collection.slug}${target ? ` --target=${target}` : ""}`;
 
     const instructions =
       `# Install Stack: ${collection.title}\n\n` +
       `${collection.description}\n\n` +
+      `## One-liner (CLI)\n\n` +
+      `\`\`\`bash\n${cliCommand}\n\`\`\`\n\n` +
+      `## Or fetch each kit manually\n\n` +
       (target
         ? `Fetch each install payload below for the **${target}** target and apply it (in order).\n\n`
         : `Fetch each install payload below and apply it (in order). Append \`?target=<your-agent>\` to scope to a specific agent harness (e.g. \`claude-code\`, \`cursor\`, \`codex\`, \`mcp\`, \`generic\`).\n\n`) +
@@ -141,6 +145,7 @@ export const collectionRoutes: FastifyPluginAsync = async (fastify) => {
       kitSlugs: orderedSlugs,
       target: target ?? null,
       installUrls,
+      cliCommand,
       instructions,
       supportedTargets: SUPPORTED_TARGETS,
     };

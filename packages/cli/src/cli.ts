@@ -426,6 +426,62 @@ program
     console.log(`\n  ${accent("✓")} Logged out. Session cleared.\n`);
   });
 
+program
+  .command("install-collection")
+  .description("Install every kit in a curated collection (in order)")
+  .argument("<slug>", "Collection slug")
+  .option("--target <target>", "Target harness (generic, codex, claude-code, cursor, mcp)")
+  .option("--dry-run", "Show what would be written without writing files")
+  .action(async (slug, opts) => {
+    try {
+      const client = createClient();
+      const target = opts.target || detectTarget();
+
+      console.log(`\n  ${accent("◆")} ${bold(`Installing collection: ${slug}`)} ${dim(`→ ${target}`)}\n`);
+
+      const bundle = await client.getCollectionInstall(slug, target);
+      const kitSlugs = bundle.kitSlugs;
+
+      if (kitSlugs.length === 0) {
+        console.error(danger(`  Collection "${slug}" has no installable kits.`));
+        process.exit(1);
+      }
+
+      console.log(`  ${dim(`${kitSlugs.length} kit${kitSlugs.length === 1 ? "" : "s"} in this stack:`)}`);
+      for (const s of kitSlugs) console.log(`    ${dim("•")} ${s}`);
+      console.log();
+
+      const failures: string[] = [];
+      for (let i = 0; i < kitSlugs.length; i++) {
+        const ks = kitSlugs[i]!;
+        const idx = `[${i + 1}/${kitSlugs.length}]`;
+        try {
+          const payload = (await client.getInstallPayload(ks, target)) as InstallPayloadWithRaw;
+          if (!opts.dryRun) {
+            const written = writeInstallFiles(payload, target);
+            console.log(`  ${accent("✓")} ${bold(idx)} ${ks} ${dim(`(${written.length} file${written.length === 1 ? "" : "s"})`)}`);
+          } else {
+            console.log(`  ${dim("○")} ${bold(idx)} ${ks} ${dim("(dry-run)")}`);
+          }
+        } catch (err: any) {
+          console.error(`  ${danger("✕")} ${bold(idx)} ${ks} — ${err.message}`);
+          failures.push(ks);
+        }
+      }
+
+      console.log();
+      if (failures.length === 0) {
+        console.log(`  ${accent("✓")} ${bold(`Collection "${slug}" installed`)} ${dim(`(${kitSlugs.length} kit${kitSlugs.length === 1 ? "" : "s"})`)}\n`);
+      } else {
+        console.error(danger(`  ${failures.length}/${kitSlugs.length} kit(s) failed: ${failures.join(", ")}`));
+        process.exit(1);
+      }
+    } catch (err: any) {
+      console.error(danger(`Error: ${err.message}`));
+      process.exit(1);
+    }
+  });
+
 function detectTarget(): string {
   if (existsSync(".cursor")) return "cursor";
   if (existsSync("CLAUDE.md")) return "claude-code";

@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 interface ScanFinding {
@@ -21,16 +25,7 @@ interface ScansResponse {
   slug: string;
   scans: Array<{ version: string; score: number | null; findings: ScanFinding[]; createdAt: string }>;
   diffs: Diff[];
-}
-
-async function fetchScans(slug: string): Promise<ScansResponse | null> {
-  try {
-    const res = await fetch(`${API_URL}/api/kits/${slug}/scans`, { cache: "no-store" });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
+  versions: string[];
 }
 
 function deltaLabel(delta: number | null) {
@@ -66,56 +61,155 @@ function findingRow(f: ScanFinding, kind: "added" | "removed" | "unchanged") {
   );
 }
 
-export default async function ScanDiffPanel({ slug }: { slug: string }) {
-  const data = await fetchScans(slug);
-  if (!data || data.scans.length < 2) return null;
+export default function ScanDiffPanel({ slug }: { slug: string }) {
+  const [data, setData] = useState<ScansResponse | null>(null);
+  const [diff, setDiff] = useState<Diff | null>(null);
+  const [base, setBase] = useState<string>("");
+  const [head, setHead] = useState<string>("");
+  const [showUnchanged, setShowUnchanged] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const latest = data.diffs[0];
-  if (!latest) return null;
+  useEffect(() => {
+    fetch(`${API_URL}/api/kits/${slug}/scans`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: ScansResponse | null) => {
+        if (!d || d.scans.length < 2) {
+          setData(d);
+          return;
+        }
+        setData(d);
+        // Default: latest two versions
+        const initialHead = d.versions[0] ?? "";
+        const initialBase = d.versions[1] ?? "";
+        setHead(initialHead);
+        setBase(initialBase);
+        setDiff(d.diffs[0] ?? null);
+      })
+      .catch(() => setError("Failed to load scan history"));
+  }, [slug]);
+
+  useEffect(() => {
+    if (!data || !base || !head || base === head) return;
+    setLoading(true);
+    setError(null);
+    fetch(`${API_URL}/api/kits/${slug}/scans?base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`, { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d: ScansResponse = await r.json();
+        setDiff(d.diffs[0] ?? null);
+      })
+      .catch(() => setError("Could not load that diff."))
+      .finally(() => setLoading(false));
+  }, [base, head, slug, data]);
+
+  if (!data || data.scans.length < 2) return null;
 
   return (
     <div className="glass-panel" style={{ marginBottom: "2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.75rem" }}>
-        <h3 style={{ fontSize: "1rem" }}>Scan Diff</h3>
-        <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
-          v{latest.baseVersion} → v{latest.headVersion}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
+        <h3 style={{ fontSize: "1rem", margin: 0 }}>Scan Diff</h3>
+        <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
+          {data.scans.length} releases
         </span>
       </div>
 
-      <div style={{ display: "flex", gap: "1rem", marginBottom: "0.75rem", fontSize: "0.85rem" }}>
-        <span style={{ color: "var(--text-secondary)" }}>
-          Score: {latest.baseScore ?? "—"} → <strong>{latest.headScore ?? "—"}</strong>
-        </span>
-        {deltaLabel(latest.delta)}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem", alignItems: "center", flexWrap: "wrap", fontSize: "0.8rem" }}>
+        <label style={{ color: "var(--text-secondary)" }}>Base</label>
+        <select
+          value={base}
+          onChange={(e) => setBase(e.target.value)}
+          className="input"
+          style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem", fontFamily: "var(--font-mono)" }}
+          aria-label="Base version"
+        >
+          {data.versions.map((v) => (
+            <option key={v} value={v} disabled={v === head}>v{v}</option>
+          ))}
+        </select>
+        <span style={{ color: "var(--text-tertiary)" }}>→</span>
+        <label style={{ color: "var(--text-secondary)" }}>Head</label>
+        <select
+          value={head}
+          onChange={(e) => setHead(e.target.value)}
+          className="input"
+          style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem", fontFamily: "var(--font-mono)" }}
+          aria-label="Head version"
+        >
+          {data.versions.map((v) => (
+            <option key={v} value={v} disabled={v === base}>v{v}</option>
+          ))}
+        </select>
+        {loading && <span style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>loading…</span>}
       </div>
 
-      {latest.added.length === 0 && latest.removed.length === 0 ? (
-        <p style={{ fontSize: "0.8rem", color: "var(--text-tertiary)", marginBottom: 0 }}>
-          No findings changed between these versions.
-        </p>
-      ) : (
-        <div>
-          {latest.added.length > 0 && (
-            <details open style={{ marginBottom: "0.5rem" }}>
-              <summary style={{ fontSize: "0.8rem", color: "var(--text-secondary)", cursor: "pointer" }}>
-                {latest.added.length} new finding{latest.added.length === 1 ? "" : "s"}
-              </summary>
-              <div style={{ marginTop: "0.5rem" }}>
-                {latest.added.map((f) => findingRow(f, "added"))}
-              </div>
-            </details>
+      {error && (
+        <p style={{ color: "var(--danger)", fontSize: "0.8rem", marginBottom: "0.5rem" }}>{error}</p>
+      )}
+
+      {diff && (
+        <>
+          <div style={{ display: "flex", gap: "1rem", marginBottom: "0.75rem", fontSize: "0.85rem" }}>
+            <span style={{ color: "var(--text-secondary)" }}>
+              Score: {diff.baseScore ?? "—"} → <strong>{diff.headScore ?? "—"}</strong>
+            </span>
+            {deltaLabel(diff.delta)}
+          </div>
+
+          {diff.added.length === 0 && diff.removed.length === 0 ? (
+            <p style={{ fontSize: "0.8rem", color: "var(--text-tertiary)", marginBottom: 0 }}>
+              No findings changed between v{diff.baseVersion} and v{diff.headVersion}.
+            </p>
+          ) : (
+            <div>
+              {diff.added.length > 0 && (
+                <details open style={{ marginBottom: "0.5rem" }}>
+                  <summary style={{ fontSize: "0.8rem", color: "var(--text-secondary)", cursor: "pointer" }}>
+                    {diff.added.length} new finding{diff.added.length === 1 ? "" : "s"}
+                  </summary>
+                  <div style={{ marginTop: "0.5rem" }}>
+                    {diff.added.map((f) => findingRow(f, "added"))}
+                  </div>
+                </details>
+              )}
+              {diff.removed.length > 0 && (
+                <details>
+                  <summary style={{ fontSize: "0.8rem", color: "var(--text-secondary)", cursor: "pointer" }}>
+                    {diff.removed.length} resolved finding{diff.removed.length === 1 ? "" : "s"}
+                  </summary>
+                  <div style={{ marginTop: "0.5rem" }}>
+                    {diff.removed.map((f) => findingRow(f, "removed"))}
+                  </div>
+                </details>
+              )}
+            </div>
           )}
-          {latest.removed.length > 0 && (
-            <details>
-              <summary style={{ fontSize: "0.8rem", color: "var(--text-secondary)", cursor: "pointer" }}>
-                {latest.removed.length} resolved finding{latest.removed.length === 1 ? "" : "s"}
-              </summary>
-              <div style={{ marginTop: "0.5rem" }}>
-                {latest.removed.map((f) => findingRow(f, "removed"))}
-              </div>
-            </details>
+
+          {diff.unchanged.length > 0 && (
+            <div style={{ marginTop: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => setShowUnchanged((v) => !v)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-tertiary)",
+                  fontSize: "0.75rem",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-mono)",
+                  padding: 0,
+                }}
+              >
+                {showUnchanged ? "▼" : "▶"} {diff.unchanged.length} unchanged finding{diff.unchanged.length === 1 ? "" : "s"}
+              </button>
+              {showUnchanged && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  {diff.unchanged.map((f) => findingRow(f, "unchanged"))}
+                </div>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

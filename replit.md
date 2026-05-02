@@ -88,7 +88,7 @@ Global CSS classes in `globals.css` organized by section:
 - `/registry` — Registry listing with sort selector (newest/installs/score), pagination (20/page), and "Trending Kits" section (top 3 by installs). Cards show **VerifiedBadge** + **Stars**.
 - `/registry/[slug]` — Kit detail with Version History, **Related Kits rail**, **Scan diff panel** (added/removed/unchanged checks across releases), **Ratings & reviews block** (auth-gated submission), VerifiedBadge on publisher line, dynamic OG/Twitter meta.
 - `/collections` — Index of curated collections (cards with emoji, kit count, total installs, average stars).
-- `/collections/[slug]` — Collection detail with kit list and **Install Stack** sidebar (one CLI command for all kits + per-target instructions).
+- `/collections/[slug]` — Collection detail with kit list and **Install Stack** sidebar (client-side `InstallStack.tsx` with copy-to-clipboard for CLI one-liner + agent prompt + collapsible install URLs).
 - `/skills` — Skills directory (card grid with search/filter, category badges, install counts)
 - `/skills/[slug]` — Skill detail page (emoji, category, description, tags, OG/Twitter meta)
 - `/publishers/[slug]` — Publisher profile page (agent name + VerifiedBadge, kit count, total installs, avg score, kit list)
@@ -126,7 +126,7 @@ Migration files are managed via Drizzle Kit and stored in `packages/db/drizzle/`
 - `GET /api/kits/mine` — Publisher's own kits (auth required)
 - `GET /api/kits/:slug` — Kit detail with publisherName, **publisherVerified, averageStars, ratingCount** (404 for unpublished)
 - `GET /api/kits/:slug/versions` — Version history with scan results
-- `GET /api/kits/:slug/scans` — Full scan history with `diffs[]` (added / removed / unchanged checks + score delta between consecutive releases)
+- `GET /api/kits/:slug/scans` — Full scan history with `diffs[]` and `versions[]`. Without query params: returns adjacent diffs (newest first). With `?base=<v>&head=<v>`: returns a single targeted diff between any two release versions.
 - `GET /api/kits/:slug/install` — Install payload
 - `POST /api/kits` — Publish/update a kit (auth required). Triggers embedding generation if `OPENAI_API_KEY` is set.
 - `DELETE /api/kits/:slug` — Unpublish a kit (auth required, owner only)
@@ -137,7 +137,7 @@ Migration files are managed via Drizzle Kit and stored in `packages/db/drizzle/`
 - `GET /api/publishers/:slug` — Publisher profile (agent name, **verified flag**, kit count, total installs, avg score, kits list)
 - `GET /api/collections` — List curated collections (slug, title, description, curator, kit count, total installs, average stars, featured flag)
 - `GET /api/collections/:slug` — Collection detail with hydrated kit list
-- `GET /api/collections/:slug/install` — Install Stack: combined CLI command + step-by-step instructions for all kits in the collection
+- `GET /api/collections/:slug/install` — Install Stack: returns `cliCommand` (e.g. `npx @kithub/cli install-collection <slug> --target=<t>`), per-kit `installUrls`, full `instructions` markdown, and `supportedTargets`. Validates `?target=` against `SUPPORTED_TARGETS` (400 on invalid).
 
 ## API Rate Limiting
 The API uses `@fastify/rate-limit` with per-route configuration (global rate limiting is disabled).
@@ -165,8 +165,9 @@ All API error responses follow a consistent shape:
 
 ## CLI (`packages/cli`)
 - Token persistence: `~/.kithub/config.json` stores token, email, agentName
-- Commands: `search`, `install`, `publish`, `login`, `verify`, `whoami`, `logout`
+- Commands: `search`, `install`, `install-collection`, `publish`, `login`, `verify`, `whoami`, `logout`
 - `install` auto-detects target (Cursor, Claude Code, Codex) and writes files to disk
+- `install-collection <slug>` fetches the collection bundle and installs every kit in order, with `--target=<t>` and `--dry-run` flags
 - `publish` prints a live URL after successful publish, exits with code 1 if blocked
 - `login` / `verify` still use the retired email-code API flow and are not production-ready
 - `publish` can still work if `KITHUB_TOKEN` is set to a valid Supabase access token
@@ -188,7 +189,8 @@ All API error responses follow a consistent shape:
   - Legacy auth flow used only in test mode
   - Kit CRUD: publish → list → detail → install payload
   - Error cases: 401/400/404 responses
-  - **Discovery (`discovery.test.ts`, 15 tests)**: keyword/semantic search modes + fallback, related-kits with tag-overlap fallback, ratings auth-gated + self-rating block + upsert + invalid stars, public ratings list, kit-detail rating aggregates, scan history, collections index/404/install bundle, publisher verified flag.
+  - **Discovery (`discovery.test.ts`, 16 tests)**: keyword/semantic search modes + fallback, related-kits with tag-overlap fallback, ratings auth-gated + self-rating block + upsert + invalid stars, public ratings list, kit-detail rating aggregates, scan history, collections index/404/install bundle (CLI command + invalid-target rejection), publisher verified flag.
+  - **MCP contracts (`packages/mcp-server/src/__tests__/tools.test.ts`, 11 tests)**: validates the input schemas of `search_kits`, `get_related_kits`, `list_collections`, `get_collection` — including `mode` enum, `target` enum bound to `SUPPORTED_TARGETS`, and `limit` range guards. Guards against silent contract drift for downstream agents.
 
 ### Running Tests
 ```bash

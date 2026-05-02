@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Stars } from "../../components/Stars";
 import { VerifiedBadge } from "../../components/VerifiedBadge";
+import InstallStack from "./InstallStack";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 const WEB_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://skillkithub.com";
@@ -43,7 +44,7 @@ async function getCollection(slug: string): Promise<CollectionDetail | null> {
   }
 }
 
-async function getCollectionInstall(slug: string): Promise<{ instructions: string; installUrls: string[] } | null> {
+async function getCollectionInstall(slug: string): Promise<{ instructions: string; installUrls: string[]; cliCommand: string } | null> {
   try {
     const res = await fetch(`${API_URL}/api/collections/${slug}/install`, { cache: "no-store" });
     if (!res.ok) return null;
@@ -69,10 +70,11 @@ export default async function CollectionDetailPage({ params: paramsPromise }: { 
   if (!c) notFound();
 
   const install = await getCollectionInstall(slug);
-  const installInstructions =
-    install?.instructions ??
-    `Fetch and install each kit in this curated collection (in order). For each URL, follow the kit spec to set it up.\n\n` +
-      c.kits.map((k, i) => `${i + 1}. ${WEB_URL}/registry/${k.slug}`).join("\n");
+  const cliCommand = install?.cliCommand ?? `npx @kithub/cli install-collection ${slug}`;
+  const installUrls = install?.installUrls ?? c.kits.map((k) => `${WEB_URL}/registry/${k.slug}`);
+  const agentPaste =
+    `Install the SkillKitHub collection at ${WEB_URL}/collections/${slug} — fetch each kit's install payload (in order) and apply it:\n` +
+    c.kits.map((k, i) => `${i + 1}. ${k.slug}`).join("\n");
 
   return (
     <main className="container" style={{ paddingTop: "3rem", paddingBottom: "4rem", minHeight: "70vh" }}>
@@ -178,15 +180,7 @@ export default async function CollectionDetailPage({ params: paramsPromise }: { 
 
         <div>
           <div className="sidebar-sticky" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-            <div className="glass-panel">
-              <h3 style={{ marginBottom: "0.75rem" }}>⚡ Install Stack</h3>
-              <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
-                Paste this into your agent (Cursor, Claude Code, OpenClaw, Codex):
-              </p>
-              <div className="terminal-block" style={{ fontSize: "0.75rem", whiteSpace: "pre-wrap" }}>
-                {installInstructions}
-              </div>
-            </div>
+            <InstallStack cliCommand={cliCommand} installUrls={installUrls} agentPaste={agentPaste} />
 
             <div className="glass-panel">
               <h3 style={{ fontSize: "1rem", marginBottom: "1rem" }}>Stack Stats</h3>

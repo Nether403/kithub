@@ -73,6 +73,7 @@ export interface CollectionInstall {
   kitSlugs: string[];
   target: string | null;
   installUrls: string[];
+  cliCommand: string;
   instructions: string;
   supportedTargets: readonly string[];
 }

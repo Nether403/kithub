@@ -23,12 +23,17 @@ interface KitsResponse {
   totalPages: number;
 }
 
-async function getKits(params: { q?: string; tag?: string; sort?: string; page?: string }): Promise<KitsResponse> {
+interface KitsResponseExtended extends KitsResponse {
+  mode?: string;
+}
+
+async function getKits(params: { q?: string; tag?: string; sort?: string; page?: string; mode?: string }): Promise<KitsResponseExtended> {
   const urlParams = new URLSearchParams();
   if (params.q) urlParams.set("q", params.q);
   if (params.tag) urlParams.set("tag", params.tag);
   if (params.sort) urlParams.set("sort", params.sort);
   if (params.page) urlParams.set("page", params.page);
+  if (params.mode) urlParams.set("mode", params.mode);
   urlParams.set("limit", "20");
   const qs = urlParams.toString();
   const res = await fetch(`${API_URL}/api/kits${qs ? `?${qs}` : ""}`, {
@@ -55,15 +60,20 @@ async function getTrending(): Promise<KitListItem[]> {
 export default async function Registry({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tag?: string; sort?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; tag?: string; sort?: string; page?: string; mode?: string }>;
 }) {
   const params = await searchParams;
+  // Default to semantic search when there's a free-text query (graceful keyword fallback if embeddings unavailable)
+  const effectiveMode: "keyword" | "semantic" =
+    params.mode === "keyword" ? "keyword" : params.q ? "semantic" : "keyword";
   const [kitsData, trending] = await Promise.all([
-    getKits(params),
+    getKits({ ...params, mode: effectiveMode }),
     getTrending(),
   ]);
-  const { kits, total, page, totalPages } = kitsData;
+  const { kits, total, page, totalPages, mode: serverMode } = kitsData;
   const currentSort = params.sort || "newest";
+  const usedSemantic = serverMode === "semantic";
+  const requestedSemantic = effectiveMode === "semantic";
 
   return (
     <main className="container" style={{ paddingTop: '4rem', paddingBottom: '4rem', minHeight: '70vh' }}>
@@ -76,18 +86,33 @@ export default async function Registry({
         </p>
       </div>
 
-      <form style={{ display: 'flex', gap: '0.75rem', marginBottom: '2.5rem' }}>
+      <form style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
         <input
           name="q"
           type="text"
           className="input"
-          placeholder="Search kits by title, tag, or intent..."
+          placeholder="Search kits by intent — e.g. 'review my pull requests' or 'summarize Slack'..."
           defaultValue={params.q}
-          style={{ flex: 1 }}
+          style={{ flex: 1, minWidth: '260px' }}
         />
+        <select name="mode" className="input" defaultValue={effectiveMode} style={{ width: 'auto' }} aria-label="Search mode">
+          <option value="semantic">Semantic</option>
+          <option value="keyword">Keyword</option>
+        </select>
         {params.sort && <input type="hidden" name="sort" value={params.sort} />}
         <button type="submit" className="btn">Search</button>
       </form>
+      {params.q && (
+        <div style={{ marginBottom: '2rem', fontSize: '0.8rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+          Mode: <strong style={{ color: 'var(--accent)' }}>{serverMode || effectiveMode}</strong>
+          {requestedSemantic && !usedSemantic && (
+            <span style={{ marginLeft: '0.75rem', color: 'var(--warning)' }}>
+              (semantic unavailable — fell back to keyword)
+            </span>
+          )}
+        </div>
+      )}
+      {!params.q && <div style={{ marginBottom: '2rem' }} />}
 
       {trending.length > 0 && !params.q && (
         <div style={{ marginBottom: '3rem' }}>

@@ -197,6 +197,7 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
   // ── Scan history with diffs ─────────────────────────────────────
   fastify.get("/:slug/scans", async (request, reply) => {
     const { slug } = request.params as { slug: string };
+    const { base, head } = request.query as { base?: string; head?: string };
     if (!db) {
       return reply.code(503).send({
         error: "Service Unavailable",
@@ -214,7 +215,7 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const releases = await getAllReleases(slug);
-    if (releases.length === 0) return { slug, scans: [], diffs: [] };
+    if (releases.length === 0) return { slug, scans: [], diffs: [], versions: [] };
 
     const scans = releases.map(r => ({
       version: r.version,
@@ -224,22 +225,47 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       createdAt: r.createdAt,
     }));
 
-    // Diffs: head→base, head→base-2, etc. (newest releases first in releases array)
+    const versions = scans.map(s => s.version);
+
+    // If explicit base+head provided, return single targeted diff
+    if (base && head) {
+      const baseScan = scans.find(s => s.version === base);
+      const headScan = scans.find(s => s.version === head);
+      if (!baseScan || !headScan) {
+        return reply.code(400).send({
+          error: "Validation Error",
+          message: `Unknown version(s). Available: ${versions.join(", ")}`,
+          statusCode: 400,
+          versions,
+        });
+      }
+      const diff = diffScans({
+        baseVersion: baseScan.version,
+        baseScore: baseScan.score,
+        baseFindings: baseScan.findings,
+        headVersion: headScan.version,
+        headScore: headScan.score,
+        headFindings: headScan.findings,
+      });
+      return { slug, scans, diffs: [diff], versions };
+    }
+
+    // Otherwise return all adjacent diffs (newest first)
     const diffs: ReturnType<typeof diffScans>[] = [];
     for (let i = 0; i < scans.length - 1; i++) {
-      const head = scans[i]!;
-      const base = scans[i + 1]!;
+      const headScan = scans[i]!;
+      const baseScan = scans[i + 1]!;
       diffs.push(diffScans({
-        baseVersion: base.version,
-        baseScore: base.score,
-        baseFindings: base.findings,
-        headVersion: head.version,
-        headScore: head.score,
-        headFindings: head.findings,
+        baseVersion: baseScan.version,
+        baseScore: baseScan.score,
+        baseFindings: baseScan.findings,
+        headVersion: headScan.version,
+        headScore: headScan.score,
+        headFindings: headScan.findings,
       }));
     }
 
-    return { slug, scans, diffs };
+    return { slug, scans, diffs, versions };
   });
 
   fastify.get("/:slug/install", async (request, reply) => {
