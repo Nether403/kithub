@@ -1,6 +1,7 @@
-modules = ["web", "nodejs-20"]
+modules = ["web", "bash", "nodejs-20"]
 [agent]
 expertMode = true
+stack = "BEST_EFFORT_FALLBACK"
 
 [nix]
 channel = "stable-25_05"
@@ -56,3 +57,12 @@ externalPort = 80
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 120000
+
+[userenv]
+
+[userenv.shared]
+WEB_URL = "https://98994a5b-5bd7-4289-b136-812522f5eb53-00-1q8u9pntvmsvs.riker.replit.dev"
+NEXT_PUBLIC_API_URL = "https://98994a5b-5bd7-4289-b136-812522f5eb53-00-1q8u9pntvmsvs.riker.replit.dev"
+NEXT_PUBLIC_BASE_URL = "https://98994a5b-5bd7-4289-b136-812522f5eb53-00-1q8u9pntvmsvs.riker.replit.dev"
+NODE_ENV = "development"
+PORT = "8080"
