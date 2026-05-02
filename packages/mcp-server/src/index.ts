@@ -36,8 +36,8 @@ server.tool(
           text: JSON.stringify(result, null, 2),
         }],
       };
-    } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    } catch (err) {
+      return { content: [{ type: "text" as const, text: `Error: ${err instanceof Error ? err.message : String(err)}` }], isError: true };
     }
   }
 );
@@ -57,8 +57,8 @@ server.tool(
           text: JSON.stringify(result, null, 2),
         }],
       };
-    } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    } catch (err) {
+      return { content: [{ type: "text" as const, text: `Error: ${err instanceof Error ? err.message : String(err)}` }], isError: true };
     }
   }
 );
@@ -78,8 +78,8 @@ server.tool(
           text: JSON.stringify(result, null, 2),
         }],
       };
-    } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    } catch (err) {
+      return { content: [{ type: "text" as const, text: `Error: ${err instanceof Error ? err.message : String(err)}` }], isError: true };
     }
   }
 );
@@ -100,8 +100,8 @@ server.tool(
           text: JSON.stringify({ collection: detail, install }, null, 2),
         }],
       };
-    } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    } catch (err) {
+      return { content: [{ type: "text" as const, text: `Error: ${err instanceof Error ? err.message : String(err)}` }], isError: true };
     }
   }
 );
@@ -121,8 +121,8 @@ server.tool(
           text: JSON.stringify(kit, null, 2),
         }],
       };
-    } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    } catch (err) {
+      return { content: [{ type: "text" as const, text: `Error: ${err instanceof Error ? err.message : String(err)}` }], isError: true };
     }
   }
 );
@@ -142,8 +142,8 @@ server.tool(
           text: JSON.stringify(payload, null, 2),
         }],
       };
-    } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    } catch (err) {
+      return { content: [{ type: "text" as const, text: `Error: ${err instanceof Error ? err.message : String(err)}` }], isError: true };
     }
   }
 );
@@ -166,8 +166,8 @@ server.tool(
           text: JSON.stringify(result, null, 2),
         }],
       };
-    } catch (err: any) {
-      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    } catch (err) {
+      return { content: [{ type: "text" as const, text: `Error: ${err instanceof Error ? err.message : String(err)}` }], isError: true };
     }
   }
 );

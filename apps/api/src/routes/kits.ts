@@ -37,7 +37,10 @@ import {
   upsertKitEmbedding, isEmbeddingsEnabled, diffScans,
   type ScanFinding,
 } from "@kithub/db";
-import { generateInstallPayload, isValidTarget, parseKitMd, scanKit, SUPPORTED_TARGETS } from "@kithub/schema";
+import { generateInstallPayload, isValidTarget, parseKitMd, scanKit, SUPPORTED_TARGETS, type KitFrontmatter } from "@kithub/schema";
+
+const errMsg = (err: unknown): string =>
+  err instanceof Error ? err.message : String(err);
 import {
   requirePublisher, type JwtUser,
 } from "../middleware/auth";
@@ -317,12 +320,12 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    let frontmatter;
+    let frontmatter: KitFrontmatter | null = null;
     try {
       const parsed = parseKitMd(release.rawMarkdown);
       frontmatter = parsed.frontmatter;
     } catch {
-      frontmatter = release.parsedFrontmatter as any;
+      frontmatter = (release.parsedFrontmatter as KitFrontmatter | null) ?? null;
     }
 
     if (!frontmatter) {
@@ -376,12 +379,12 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
     let kitData;
     try {
       kitData = parseKitMd(rawMarkdown);
-    } catch (err: any) {
+    } catch (err) {
       return reply.code(422).send({
         error: "Validation Error",
         message: "Kit validation failed.",
         statusCode: 422,
-        details: err.message,
+        details: errMsg(err),
       });
     }
 
@@ -415,14 +418,14 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       kitSlug: kitData.frontmatter.slug,
       version: kitData.frontmatter.version,
       rawMarkdown,
-      parsedFrontmatter: kitData.frontmatter as any,
+      parsedFrontmatter: kitData.frontmatter,
       conformanceLevel: kitData.conformanceLevel,
     });
 
     await db.insert(schema.kitReleaseScans).values({
       releaseId,
       score: scanResult.score,
-      findings: scanResult.findings as any,
+      findings: scanResult.findings,
       status: scanResult.passed ? "passed" : "failed",
     });
 

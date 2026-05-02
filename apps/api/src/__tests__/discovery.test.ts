@@ -47,7 +47,7 @@ let secondToken = "";
 const SECOND_EMAIL = `discovery-second-${Date.now()}@kithub-test.dev`;
 const SECOND_AGENT = `discovery-second-${Date.now()}`;
 
-function skipIfNoDb(ctx: any) {
+function skipIfNoDb(ctx: { skip: () => void }) {
   if (!dbAvailable) {
     ctx.skip();
     return true;
@@ -122,7 +122,7 @@ describe("Search modes", () => {
     expect(Array.isArray(body.kits)).toBe(true);
     expect(["embedding", "tags", "none"]).toContain(body.mode);
     // The kit itself must be excluded
-    expect(body.kits.find((k: any) => k.slug === TEST_KIT_SLUG)).toBeUndefined();
+    expect(body.kits.find((k: { slug: string }) => k.slug === TEST_KIT_SLUG)).toBeUndefined();
   });
 });
 
