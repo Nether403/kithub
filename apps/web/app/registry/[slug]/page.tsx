@@ -73,15 +73,23 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
   return (
     <main className="container" style={{ paddingTop: '3rem', paddingBottom: '4rem' }}>
       <ViewTracker slug={slug} />
-      <div style={{ marginBottom: '2.5rem' }}>
-        <Link href="/registry" style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <Link href="/registry" style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' as const, letterSpacing: '0.08em', textDecoration: 'none' }}>
           ← Back to Registry
         </Link>
       </div>
 
+      {kit.publisherName && (
+        <div className="eyebrow" style={{ marginBottom: '0.75rem' }}>
+          <span className="eyebrow-num">@{kit.publisherName}</span>
+          <span className="eyebrow-bar" />
+          <span>{kit.slug}</span>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', marginBottom: '0.5rem' }}>{kit.title}</h1>
+          <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', marginBottom: '0.5rem', letterSpacing: '-0.04em', background: 'var(--gradient-text)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{kit.title}</h1>
           {kit.publisherName && (
             <p style={{ marginBottom: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
               <Link href={`/publishers/${kit.publisherName}`} style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: '0.9rem' }}>

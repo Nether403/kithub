@@ -1150,22 +1150,50 @@ a:hover { opacity: 0.85; }
   margin: 0 auto;
 }
 
-/* Inline link button — used inside Link cards so nested clickable text */
-/* doesn't require nested anchors (invalid HTML). */
-.link-button {
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
-  font: inherit;
+/* Stretched-link pattern: card is a non-interactive container; the title  */
+/* link expands via ::after to cover the whole card while sibling links    */
+/* (e.g. publisher) sit above with z-index. This avoids nested anchors.    */
+.kit-card-stretched {
+  position: relative;
+  isolation: isolate;
+}
+
+.kit-card-title-link {
+  color: inherit;
+  text-decoration: none;
+  position: static;
+  outline: none;
+}
+
+.kit-card-title-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.kit-card-title-link:focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+}
+
+.kit-card-stretched .kit-publisher-link,
+.kit-card-stretched .tag-chip,
+.kit-card-stretched .stat-counter,
+.kit-card-stretched .score-badge {
+  position: relative;
+  z-index: 2;
+}
+
+.kit-publisher-link {
   color: var(--accent);
-  cursor: pointer;
   text-decoration: none;
 }
 
-.link-button:hover { text-decoration: underline; }
+.kit-publisher-link:hover { text-decoration: underline; }
 
-.link-button:focus-visible {
+.kit-publisher-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 2px;

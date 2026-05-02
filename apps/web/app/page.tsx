@@ -2,21 +2,17 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 interface RegistryStats {
   totalKits: number;
-  totalInstalls: number;
-  totalPublishers: number;
   totalCollections: number;
 }
 
 async function getStats(): Promise<RegistryStats> {
-  const fallback: RegistryStats = { totalKits: 0, totalInstalls: 0, totalPublishers: 0, totalCollections: 0 };
+  const fallback: RegistryStats = { totalKits: 0, totalCollections: 0 };
   try {
     const [kitsRes, collectionsRes] = await Promise.all([
       fetch(`${API_URL}/api/kits?limit=1`, { cache: "no-store" }).catch(() => null),
       fetch(`${API_URL}/api/collections`, { cache: "no-store" }).catch(() => null),
     ]);
     let totalKits = 0;
-    let totalInstalls = 0;
-    let totalPublishers = 0;
     let totalCollections = 0;
 
     if (kitsRes?.ok) {
@@ -25,13 +21,9 @@ async function getStats(): Promise<RegistryStats> {
     }
     if (collectionsRes?.ok) {
       const data = await collectionsRes.json();
-      const collections = data.collections ?? [];
-      totalCollections = collections.length;
-      totalInstalls = collections.reduce((s: number, c: { totalInstalls?: number }) => s + (c.totalInstalls ?? 0), 0);
-      const curators = new Set<string>(collections.map((c: { curator?: string }) => c.curator ?? "").filter(Boolean));
-      totalPublishers = curators.size;
+      totalCollections = (data.collections ?? []).length;
     }
-    return { totalKits, totalInstalls, totalPublishers, totalCollections };
+    return { totalKits, totalCollections };
   } catch {
     return fallback;
   }
@@ -74,19 +66,19 @@ export default async function Home() {
           <div className="hero-stats" role="list" aria-label="Registry statistics">
             <div className="hero-stat" role="listitem">
               <div className="hero-stat-value">{formatStat(stats.totalKits)}</div>
-              <span className="hero-stat-label">Kits</span>
+              <span className="hero-stat-label">Kits Indexed</span>
             </div>
             <div className="hero-stat" role="listitem">
               <div className="hero-stat-value">{formatStat(stats.totalCollections)}</div>
-              <span className="hero-stat-label">Collections</span>
+              <span className="hero-stat-label">Curated Stacks</span>
             </div>
             <div className="hero-stat" role="listitem">
-              <div className="hero-stat-value">{formatStat(stats.totalPublishers)}</div>
-              <span className="hero-stat-label">Publishers</span>
+              <div className="hero-stat-value">3</div>
+              <span className="hero-stat-label">Agent Targets</span>
             </div>
             <div className="hero-stat" role="listitem">
-              <div className="hero-stat-value">{formatStat(stats.totalInstalls)}</div>
-              <span className="hero-stat-label">Installs</span>
+              <div className="hero-stat-value">v1</div>
+              <span className="hero-stat-label">Kit Spec</span>
             </div>
           </div>
 
