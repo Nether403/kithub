@@ -67,6 +67,7 @@ export default function Nav() {
 
   const navLinks = [
     { href: "/registry", label: "Kits" },
+    { href: "/collections", label: "Collections" },
     { href: "/skills", label: "Skills" },
     { href: "/publish", label: "Publish" },
     { href: "/dashboard", label: "Dashboard" },

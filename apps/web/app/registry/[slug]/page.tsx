@@ -2,6 +2,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import VersionHistory from "./VersionHistory";
 import ViewTracker from "./ViewTracker";
+import RelatedKits from "./RelatedKits";
+import ScanDiffPanel from "./ScanDiffPanel";
+import RatingsPanel from "./RatingsPanel";
+import { Stars } from "../../components/Stars";
+import { VerifiedBadge } from "../../components/VerifiedBadge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -78,15 +83,19 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
         <div>
           <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', marginBottom: '0.5rem' }}>{kit.title}</h1>
           {kit.publisherName && (
-            <p style={{ marginBottom: '0.5rem' }}>
+            <p style={{ marginBottom: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
               <Link href={`/publishers/${kit.publisherName}`} style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: '0.9rem' }}>
                 @{kit.publisherName}
               </Link>
+              <VerifiedBadge verified={!!kit.publisherVerified} showLabel />
             </p>
           )}
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '1rem' }}>
             {kit.summary}
           </p>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+            <Stars value={kit.averageStars ?? null} count={kit.ratingCount ?? 0} size="md" />
+          </div>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: '0.9rem' }}>v{kit.version}</span>
             <span className={`score-badge ${scoreBadgeClass}`}>◆ {kit.scan?.score}/10</span>
@@ -119,6 +128,8 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
           </div>
 
           <VersionHistory slug={slug} />
+          <ScanDiffPanel slug={slug} />
+          <RatingsPanel slug={slug} />
           <div className="glass-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1rem' }}>Community Learnings</h3>
@@ -135,6 +146,7 @@ export default async function KitDetail({ params: paramsPromise }: { params: Pro
 
         <div>
           <div className="sidebar-sticky" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <RelatedKits slug={slug} />
             <div className="install-primary">
               <div className="glass-panel">
                 <h3>⚡ Agent Installation</h3>

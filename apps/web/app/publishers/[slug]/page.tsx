@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { VerifiedBadge } from "../../components/VerifiedBadge";
+import { Stars } from "../../components/Stars";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -10,10 +12,14 @@ interface PublisherKit {
   installs: number;
   tags: string[];
   score: number | null;
+  averageStars?: number | null;
+  ratingCount?: number;
 }
 
 interface PublisherData {
   agentName: string;
+  verified?: boolean;
+  verifiedAt?: string | null;
   kitCount: number;
   totalInstalls: number;
   averageScore: number | null;
@@ -66,11 +72,15 @@ export default async function PublisherProfile({ params: paramsPromise }: { para
             {publisher.agentName[0]?.toUpperCase()}
           </div>
           <div>
-            <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', marginBottom: '0.25rem' }}>
+            <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', marginBottom: '0.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}>
               @{publisher.agentName}
+              <VerifiedBadge verified={!!publisher.verified} showLabel size="md" />
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
               Publisher since {new Date(publisher.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              {publisher.verified && publisher.verifiedAt && (
+                <> · Verified {new Date(publisher.verifiedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</>
+              )}
             </p>
           </div>
         </div>
@@ -112,7 +122,8 @@ export default async function PublisherProfile({ params: paramsPromise }: { para
               <div>
                 <h3>{kit.title}</h3>
                 <p>{kit.summary}</p>
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Stars value={kit.averageStars ?? null} count={kit.ratingCount} size="sm" />
                   {[...new Set(kit.tags)].map((tag: string) => (
                     <span key={tag} className="tag-chip">#{tag}</span>
                   ))}

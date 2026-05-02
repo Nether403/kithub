@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, varchar, integer, jsonb, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // ── Users & Identity ──────────────────────────────────────────────
 
@@ -22,6 +23,7 @@ export const publisherProfiles = pgTable("publisher_profiles", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: varchar("user_id").notNull().references(() => users.id).unique(),
   agentName: varchar("agent_name").notNull().unique(),
+  verifiedAt: timestamp("verified_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -59,7 +61,9 @@ export const kitTags = pgTable("kit_tags", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   kitSlug: varchar("kit_slug").notNull().references(() => kits.slug),
   tag: varchar("tag").notNull(),
-});
+}, (table) => ({
+  uniqueKitTag: uniqueIndex("kit_tag_unique").on(table.kitSlug, table.tag),
+}));
 
 // ── Safety & Quality ──────────────────────────────────────────────
 
@@ -129,6 +133,50 @@ export const skillTags = pgTable("skill_tags", {
   tag: varchar("tag").notNull(),
 }, (table) => ({
   uniqueSkillTag: uniqueIndex("skill_tag_unique").on(table.skillSlug, table.tag),
+}));
+
+// ── Ratings & Reviews ────────────────────────────────────────────
+
+export const kitRatings = pgTable("kit_ratings", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  kitSlug: varchar("kit_slug").notNull().references(() => kits.slug),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  publisherId: varchar("publisher_id").notNull().references(() => publisherProfiles.id),
+  stars: integer("stars").notNull(),
+  body: text("body"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueUserKit: uniqueIndex("kit_rating_unique_user_kit").on(table.userId, table.kitSlug),
+  kitSlugIdx: index("kit_rating_kit_slug_idx").on(table.kitSlug),
+}));
+
+// ── Curated Collections ──────────────────────────────────────────
+
+export const collections = pgTable("collections", {
+  slug: varchar("slug").primaryKey(),
+  title: varchar("title").notNull(),
+  description: text("description").notNull(),
+  curator: varchar("curator").notNull().default("SkillKitHub"),
+  emoji: varchar("emoji", { length: 10 }).notNull().default("📦"),
+  kitSlugs: jsonb("kit_slugs").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  featured: integer("featured").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ── Kit Embeddings (semantic search) ─────────────────────────────
+
+export const kitEmbeddings = pgTable("kit_embeddings", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  kitSlug: varchar("kit_slug").notNull().references(() => kits.slug).unique(),
+  releaseId: varchar("release_id").references(() => kitReleases.id),
+  model: varchar("model").notNull().default("text-embedding-3-small"),
+  inputHash: varchar("input_hash").notNull(),
+  vector: jsonb("vector").$type<number[]>().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  kitSlugIdx: index("kit_embedding_kit_slug_idx").on(table.kitSlug),
 }));
 
 // ── Notification Logs ────────────────────────────────────────────

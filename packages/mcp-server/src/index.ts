@@ -14,15 +14,93 @@ const server = new McpServer({
 
 server.tool(
   "search_kits",
-  "Search the SkillKitHub registry for agent workflow kits. Returns matching kits with metadata, scores, and install counts.",
-  { query: z.string().optional().describe("Search term to find kits by title, tag, or intent") },
-  async ({ query }: { query?: string }) => {
+  "Search the SkillKitHub registry for agent workflow kits. Returns matching kits with metadata, scores, ratings, and install counts. Use mode=semantic for intent-based search; falls back to keyword if embeddings are unavailable.",
+  {
+    query: z.string().optional().describe("Search term to find kits by title, tag, or intent"),
+    mode: z.enum(["keyword", "semantic"]).optional().describe("Match strategy. Default: keyword"),
+    limit: z.number().int().min(1).max(50).optional().describe("Max results (default 20)"),
+  },
+  async ({ query, mode, limit }: { query?: string; mode?: "keyword" | "semantic"; limit?: number }) => {
     try {
-      const { kits } = await client.searchKits(query);
+      const result = await client.searchKits(query, undefined, { mode, limit });
       return {
         content: [{
           type: "text" as const,
-          text: JSON.stringify(kits, null, 2),
+          text: JSON.stringify(result, null, 2),
+        }],
+      };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    }
+  }
+);
+
+// ── get_related_kits ──────────────────────────────────────────────
+
+server.tool(
+  "get_related_kits",
+  "Find kits similar to a given kit using semantic embeddings (with tag-overlap fallback). Useful for suggesting next steps after installing a kit.",
+  {
+    slug: z.string().describe("The source kit slug to find related kits for"),
+    limit: z.number().int().min(1).max(20).optional().describe("Max related kits (default 6)"),
+  },
+  async ({ slug, limit }: { slug: string; limit?: number }) => {
+    try {
+      const result = await client.getRelatedKits(slug, limit ?? 6);
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify(result, null, 2),
+        }],
+      };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    }
+  }
+);
+
+// ── list_collections ──────────────────────────────────────────────
+
+server.tool(
+  "list_collections",
+  "List curated collections — handpicked stacks of kits for specific workflows (e.g., Indie Hacker, AI Researcher, SaaS Starter).",
+  {},
+  async () => {
+    try {
+      const result = await client.listCollections();
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify(result, null, 2),
+        }],
+      };
+    } catch (err: any) {
+      return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
+    }
+  }
+);
+
+// ── get_collection ────────────────────────────────────────────────
+
+server.tool(
+  "get_collection",
+  "Get a curated collection's full details — including all kits in the stack and install instructions for the entire bundle.",
+  {
+    slug: z.string().describe("The collection slug"),
+    includeInstall: z.boolean().optional().describe("If true, also fetch install instructions for the stack"),
+    target: z
+      .enum(["generic", "codex", "claude-code", "cursor", "mcp"])
+      .optional()
+      .describe("Optional install target — one of: generic, codex, claude-code, cursor, mcp"),
+  },
+  async ({ slug, includeInstall, target }: { slug: string; includeInstall?: boolean; target?: "generic" | "codex" | "claude-code" | "cursor" | "mcp" }) => {
+    try {
+      const detail = await client.getCollection(slug);
+      const install = includeInstall ? await client.getCollectionInstall(slug, target) : null;
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({ collection: detail, install }, null, 2),
         }],
       };
     } catch (err: any) {

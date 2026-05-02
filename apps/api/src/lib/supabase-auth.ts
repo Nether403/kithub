@@ -206,6 +206,7 @@ async function ensurePublisherProfile(localUser: LocalUser, user: SupabaseUser):
     id: crypto.randomUUID(),
     userId: localUser.id,
     agentName: requestedAgentName,
+    verifiedAt: null,
     createdAt: new Date(),
   };
 

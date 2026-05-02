@@ -44,14 +44,16 @@ async function seed() {
     id: publisherId,
     userId,
     agentName: "QuantBot",
+    verifiedAt: new Date(),
   }).onConflictDoUpdate({
     target: schema.publisherProfiles.agentName,
     set: {
       userId,
+      verifiedAt: new Date(),
     },
   });
 
-  console.log("✅ Created test user: publisher@kithub.dev (QuantBot)\n");
+  console.log("✅ Created verified test user: publisher@kithub.dev (QuantBot ✓)\n");
 
   // ── Kit 1: Weekly Earnings Preview ──────────────────────────────
   const kit1Md = `---
@@ -254,6 +256,122 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
   }
 
   console.log("✅ 2 learnings seeded\n");
+
+  // ── Second publisher (also verified) ─────────────────────────────
+  const secondUserId = "seed-publisher-user-0001";
+  const secondPublisherId = "seed-publisher-profile-0001";
+  await db.insert(schema.users).values({
+    id: secondUserId,
+    email: "ops@kithub.dev",
+    emailVerified: new Date(),
+  }).onConflictDoUpdate({
+    target: schema.users.email,
+    set: { emailVerified: new Date() },
+  });
+  await db.insert(schema.publisherProfiles).values({
+    id: secondPublisherId,
+    userId: secondUserId,
+    agentName: "OpsBot",
+    verifiedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: schema.publisherProfiles.agentName,
+    set: { userId: secondUserId, verifiedAt: new Date() },
+  });
+
+  // ── Sample Ratings ───────────────────────────────────────────────
+  const sampleRatings = [
+    { kitSlug: "github-pr-reviewer", userId: secondUserId, publisherId: secondPublisherId, stars: 5, body: "Picked up a missing input sanitizer in our auth PRs on day one." },
+    { kitSlug: "weekly-earnings-preview", userId: secondUserId, publisherId: secondPublisherId, stars: 4, body: "Solid digest. Note the rate-limit learning — saved us a paid plan upgrade." },
+    { kitSlug: "slack-summarizer", userId: secondUserId, publisherId: secondPublisherId, stars: 4, body: "Good baseline; we extended it with thread-aware summaries." },
+  ];
+  for (const r of sampleRatings) {
+    const [existing] = await db.select().from(schema.kitRatings)
+      .where(sql`${schema.kitRatings.userId} = ${r.userId} AND ${schema.kitRatings.kitSlug} = ${r.kitSlug}`)
+      .limit(1);
+    if (!existing) {
+      await db.insert(schema.kitRatings).values(r);
+    }
+  }
+  console.log("✅ Sample ratings seeded\n");
+
+  // ── Curated Collections ──────────────────────────────────────────
+  const collections = [
+    {
+      slug: "indie-hacker-starter",
+      title: "Indie Hacker Starter",
+      description: "Ship faster as a one-person shop: PR review, Slack digests, and weekly market signal — wired up in one paste.",
+      curator: "SkillKitHub",
+      emoji: "🚀",
+      kitSlugs: ["github-pr-reviewer", "slack-summarizer", "weekly-earnings-preview"],
+      featured: 1,
+    },
+    {
+      slug: "engineering-quality",
+      title: "Engineering Quality",
+      description: "Catch regressions and ship safer code. Paste-and-go review automation for any agent harness.",
+      curator: "SkillKitHub",
+      emoji: "🛡️",
+      kitSlugs: ["github-pr-reviewer"],
+      featured: 0,
+    },
+    {
+      slug: "ops-comms",
+      title: "Ops & Comms",
+      description: "Keep the team aligned: daily Slack digests and scheduled earnings briefings curated for distributed orgs.",
+      curator: "SkillKitHub",
+      emoji: "📡",
+      kitSlugs: ["slack-summarizer", "weekly-earnings-preview"],
+      featured: 0,
+    },
+  ];
+  for (const c of collections) {
+    const [existing] = await db.select().from(schema.collections)
+      .where(eq(schema.collections.slug, c.slug)).limit(1);
+    if (existing) {
+      await db.update(schema.collections).set({
+        title: c.title,
+        description: c.description,
+        kitSlugs: c.kitSlugs,
+        emoji: c.emoji,
+        featured: c.featured,
+        updatedAt: new Date(),
+      }).where(eq(schema.collections.slug, c.slug));
+    } else {
+      await db.insert(schema.collections).values(c);
+    }
+  }
+  console.log(`✅ ${collections.length} curated collections seeded\n`);
+
+  // ── Embeddings backfill (only if OPENAI_API_KEY) ─────────────────
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const { upsertKitEmbedding } = await import("./discovery.js");
+      const allKits = await db.select().from(schema.kits);
+      for (const k of allKits) {
+        const [release] = await db.select().from(schema.kitReleases)
+          .where(eq(schema.kitReleases.kitSlug, k.slug))
+          .orderBy(sql`${schema.kitReleases.createdAt} desc`)
+          .limit(1);
+        const tags = await db.select().from(schema.kitTags)
+          .where(eq(schema.kitTags.kitSlug, k.slug));
+        const result = await upsertKitEmbedding(db as any, {
+          kitSlug: k.slug,
+          releaseId: release?.id ?? null,
+          title: k.title,
+          summary: k.summary,
+          tags: tags.map(t => t.tag),
+          body: release?.rawMarkdown,
+        });
+        console.log(`  · ${k.slug}: ${result.status}${result.reason ? ` (${result.reason})` : ""}`);
+      }
+      console.log("✅ Embedding backfill complete\n");
+    } catch (err) {
+      console.warn("⚠️  Embedding backfill skipped:", (err as Error).message);
+    }
+  } else {
+    console.log("ℹ️  OPENAI_API_KEY not set — skipping embedding backfill (semantic search will fall back to keyword).\n");
+  }
+
   console.log("🎉 Seed complete!");
 
   await client.end();

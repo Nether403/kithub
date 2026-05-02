@@ -23,7 +23,58 @@ export interface KitDetail extends KitSummary {
   learningsCount: number;
   scan: { score: number; status: string; findings: any[] } | null;
   resourceBindings: any;
+  publisherVerified?: boolean;
+  averageStars?: number | null;
+  ratingCount?: number;
   createdAt: string;
+}
+
+export interface RatingSummary {
+  averageStars: number | null;
+  ratingCount: number;
+  ratings: Array<{
+    id: string;
+    stars: number;
+    body: string | null;
+    publisherName: string;
+    verified: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+}
+
+export interface CollectionSummary {
+  slug: string;
+  title: string;
+  description: string;
+  curator: string;
+  emoji: string;
+  kitCount: number;
+  totalInstalls: number;
+  averageStars: number | null;
+  featured: boolean;
+}
+
+export interface CollectionDetail {
+  slug: string;
+  title: string;
+  description: string;
+  curator: string;
+  emoji: string;
+  featured: boolean;
+  kits: KitSummary[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CollectionInstall {
+  slug: string;
+  title: string;
+  kitSlugs: string[];
+  target: string | null;
+  installUrls: string[];
+  instructions: string;
+  supportedTargets: readonly string[];
 }
 
 export interface PublishResult {
@@ -357,12 +408,66 @@ export class KitHubClient {
 
   // ── Kit Endpoints ───────────────────────────────────────────────
 
-  async searchKits(query?: string, tag?: string): Promise<{ kits: KitSummary[]; total: number }> {
+  async searchKits(
+    query?: string,
+    tag?: string,
+    options?: { mode?: "keyword" | "semantic"; limit?: number }
+  ): Promise<{ kits: KitSummary[]; total: number; mode?: string }> {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (tag) params.set("tag", tag);
+    if (options?.mode) params.set("mode", options.mode);
+    if (options?.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
     return this.request(`/api/kits${qs ? `?${qs}` : ""}`);
+  }
+
+  async getRelatedKits(slug: string, limit = 6): Promise<{ kits: KitSummary[]; mode: string }> {
+    return this.request(`/api/kits?related_to=${encodeURIComponent(slug)}&limit=${limit}`);
+  }
+
+  async listCollections(): Promise<{ collections: CollectionSummary[] }> {
+    return this.request("/api/collections");
+  }
+
+  async getCollection(slug: string): Promise<CollectionDetail> {
+    return this.request(`/api/collections/${slug}`);
+  }
+
+  async getCollectionInstall(slug: string, target?: string): Promise<CollectionInstall> {
+    const qs = target ? `?target=${encodeURIComponent(target)}` : "";
+    return this.request(`/api/collections/${slug}/install${qs}`);
+  }
+
+  async getKitRatings(slug: string): Promise<RatingSummary> {
+    return this.request(`/api/kits/${slug}/ratings`);
+  }
+
+  async submitRating(
+    slug: string,
+    args: { stars: number; body?: string }
+  ): Promise<{ status: string; ratingId: string; averageStars: number | null; ratingCount: number }> {
+    return this.request(`/api/kits/${slug}/ratings`, {
+      method: "POST",
+      body: JSON.stringify(args),
+    });
+  }
+
+  async getKitScans(slug: string): Promise<{
+    slug: string;
+    scans: Array<{ version: string; releaseId: string; score: number | null; findings: any[]; createdAt: string }>;
+    diffs: Array<{
+      baseVersion: string | null;
+      baseScore: number | null;
+      headVersion: string;
+      headScore: number | null;
+      delta: number | null;
+      added: any[];
+      removed: any[];
+      unchanged: any[];
+    }>;
+  }> {
+    return this.request(`/api/kits/${slug}/scans`);
   }
 
   async getKit(slug: string): Promise<KitDetail> {

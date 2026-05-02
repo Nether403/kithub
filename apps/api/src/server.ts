@@ -8,6 +8,9 @@ import { kitRoutes } from "./routes/kits";
 import { metaRoutes } from "./routes/meta";
 import { publisherRoutes } from "./routes/publishers";
 import { skillRoutes } from "./routes/skills";
+import { ratingRoutes } from "./routes/ratings";
+import { collectionRoutes } from "./routes/collections";
+import { isEmbeddingsEnabled } from "@kithub/db";
 import { authMiddleware } from "./middleware/auth";
 import { getSupabaseAuthConfigError } from "./lib/supabase-auth";
 import { db, healthCheck } from "@kithub/db";
@@ -64,8 +67,16 @@ async function start() {
   await fastify.register(authRoutes, { prefix: "/api/auth" });
   await fastify.register(metaRoutes, { prefix: "/api" });
   await fastify.register(kitRoutes, { prefix: "/api/kits" });
+  await fastify.register(ratingRoutes, { prefix: "/api/kits" });
   await fastify.register(publisherRoutes, { prefix: "/api/publishers" });
   await fastify.register(skillRoutes, { prefix: "/api/skills" });
+  await fastify.register(collectionRoutes, { prefix: "/api/collections" });
+
+  if (!isEmbeddingsEnabled()) {
+    fastify.log.warn(
+      "[discovery] OPENAI_API_KEY not set — semantic search will fall back to keyword matching, related-kits will use tag overlap."
+    );
+  }
 
   // ── Health Check ────────────────────────────────────────────────
   fastify.get("/health", async () => {

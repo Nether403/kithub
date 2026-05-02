@@ -29,6 +29,7 @@ SkillKitHub is a monorepo for the universal registry of AI agent workflows (Kits
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Public Supabase browser key used by the web app
 - `NEXT_PUBLIC_API_URL` — API base URL used by the frontend
 - `WEB_URL` — Frontend URL for CORS and notification links (defaults to http://localhost:5000)
+- `OPENAI_API_KEY` — *(optional)* enables semantic search and related-kits via OpenAI `text-embedding-3-small`. Falls back to keyword/tag matching when unset (one-time warning logged).
 
 ## Package Manager
 - npm (with npm workspaces)
@@ -84,11 +85,13 @@ Global CSS classes in `globals.css` organized by section:
 - `/auth` — Auth (centered card, register/login toggle, verification)
 - `/publish` — Publish kit (3-step wizard with progress bar, live markdown preview in Step 1). Supports `?edit=<slug>` for editing existing kits.
 - `/dashboard` — User dashboard (stats grid, owned kit list with Analytics/Edit/Unpublish actions). Uses `GET /api/kits/mine` for publisher-owned kits.
-- `/registry` — Registry listing with sort selector (newest/installs/score), pagination (20/page), and "Trending Kits" section (top 3 by installs)
-- `/registry/[slug]` — Kit detail with Version History panel, dynamic OG/Twitter meta tags for social sharing, publisher link
+- `/registry` — Registry listing with sort selector (newest/installs/score), pagination (20/page), and "Trending Kits" section (top 3 by installs). Cards show **VerifiedBadge** + **Stars**.
+- `/registry/[slug]` — Kit detail with Version History, **Related Kits rail**, **Scan diff panel** (added/removed/unchanged checks across releases), **Ratings & reviews block** (auth-gated submission), VerifiedBadge on publisher line, dynamic OG/Twitter meta.
+- `/collections` — Index of curated collections (cards with emoji, kit count, total installs, average stars).
+- `/collections/[slug]` — Collection detail with kit list and **Install Stack** sidebar (one CLI command for all kits + per-target instructions).
 - `/skills` — Skills directory (card grid with search/filter, category badges, install counts)
 - `/skills/[slug]` — Skill detail page (emoji, category, description, tags, OG/Twitter meta)
-- `/publishers/[slug]` — Publisher profile page (agent name, kit count, total installs, avg score, kit list)
+- `/publishers/[slug]` — Publisher profile page (agent name + VerifiedBadge, kit count, total installs, avg score, kit list)
 - 404 — `apps/web/app/not-found.tsx` (styled 404 with gradient text)
 
 ### Footer
@@ -117,16 +120,24 @@ Migration files are managed via Drizzle Kit and stored in `packages/db/drizzle/`
 
 ## API Endpoints
 - `GET /api/kits` — Public registry listing with sort/pagination (`?sort=installs|score|newest`, `?page=1`, `?limit=20`)
+  - Discovery params: `?q=<text>&mode=keyword|semantic` (semantic falls back to keyword when `OPENAI_API_KEY` is missing)
+  - `?related_to=<slug>&limit=N` — returns related kits via embedding cosine similarity (or tag overlap fallback). Response includes `mode: "embedding"|"tags"|"none"`.
 - `GET /api/kits/trending` — Top 3 kits by install count
 - `GET /api/kits/mine` — Publisher's own kits (auth required)
-- `GET /api/kits/:slug` — Kit detail with publisherName (404 for unpublished)
+- `GET /api/kits/:slug` — Kit detail with publisherName, **publisherVerified, averageStars, ratingCount** (404 for unpublished)
 - `GET /api/kits/:slug/versions` — Version history with scan results
+- `GET /api/kits/:slug/scans` — Full scan history with `diffs[]` (added / removed / unchanged checks + score delta between consecutive releases)
 - `GET /api/kits/:slug/install` — Install payload
-- `POST /api/kits` — Publish/update a kit (auth required)
+- `POST /api/kits` — Publish/update a kit (auth required). Triggers embedding generation if `OPENAI_API_KEY` is set.
 - `DELETE /api/kits/:slug` — Unpublish a kit (auth required, owner only)
 - `POST /api/kits/:slug/learnings` — Submit a learning
 - `GET /api/kits/:slug/analytics` — Daily installs (30d) and target breakdown (auth required, owner only)
-- `GET /api/publishers/:slug` — Publisher profile (agent name, kit count, total installs, avg score, kits list)
+- `GET /api/kits/:slug/ratings` — Public list of ratings + aggregated `averageStars`, `ratingCount`
+- `POST /api/kits/:slug/ratings` — Submit/update a 1-5 star rating with optional body (auth required, cannot rate own kit; rate-limited)
+- `GET /api/publishers/:slug` — Publisher profile (agent name, **verified flag**, kit count, total installs, avg score, kits list)
+- `GET /api/collections` — List curated collections (slug, title, description, curator, kit count, total installs, average stars, featured flag)
+- `GET /api/collections/:slug` — Collection detail with hydrated kit list
+- `GET /api/collections/:slug/install` — Install Stack: combined CLI command + step-by-step instructions for all kits in the collection
 
 ## API Rate Limiting
 The API uses `@fastify/rate-limit` with per-route configuration (global rate limiting is disabled).
@@ -172,11 +183,12 @@ All API error responses follow a consistent shape:
   - `scanKit` (secrets detection, destructive patterns, model grounding, scoring)
   - `KitFrontmatterSchema` / `KitBodySchema` (Zod validation)
   - `generateInstallPayload` / `isValidTarget` (all 5 install targets)
-- **`apps/api`** — 15 integration tests covering:
+- **`apps/api`** — integration tests covering:
   - Health check endpoint
   - Legacy auth flow used only in test mode
   - Kit CRUD: publish → list → detail → install payload
   - Error cases: 401/400/404 responses
+  - **Discovery (`discovery.test.ts`, 15 tests)**: keyword/semantic search modes + fallback, related-kits with tag-overlap fallback, ratings auth-gated + self-rating block + upsert + invalid stars, public ratings list, kit-detail rating aggregates, scan history, collections index/404/install bundle, publisher verified flag.
 
 ### Running Tests
 ```bash
@@ -186,9 +198,15 @@ cd apps/api && npx vitest run         # API tests only
 ```
 
 ## Seed Data
-- **Basic seed**: `npx tsx packages/db/src/seed.ts` — Creates test user + 3 sample kits
+- **Basic seed**: `npx tsx packages/db/src/seed.ts` — Creates test user + 3 sample kits, marks QuantBot/OpsBot publishers as **verified**, seeds 3 curated collections (`indie-hacker-starter`, `engineering-quality`, `ops-comms`), seeds sample ratings, and **backfills embeddings** when `OPENAI_API_KEY` is set.
 - **JourneyKits seed**: `npx tsx packages/db/src/seed-journeykits.ts` — Fetches ~20 real kits from JourneyKits.ai, anonymizes authors, and inserts them under a "CommunityCurator" publisher. Idempotent (safe to re-run).
 - **Skills seed**: `npx tsx packages/db/src/seed-skills.ts` — Creates 10 universal agent skills under "SkillCurator" publisher. Idempotent.
+
+## Discovery & Trust (Schema Additions)
+- `kit_ratings` — 1–5 stars + optional body, unique on `(kit_slug, publisher_id)`, self-rating blocked at API.
+- `collections` + `collection_kits` — curator-authored bundles with display order; aggregates fetched via `batchFetchKitsBySlugs`.
+- `kit_embeddings` — `jsonb` vector storage (no pgvector dependency); cosine similarity computed in JS by `semanticSearchKits` and `getRelatedKits`.
+- `publisher_profiles.verified_at` — timestamp; surfaced as `verified` boolean on publisher endpoints and `publisherVerified` on kit detail.
 
 ## Post-Merge Setup
 - Script: `scripts/post-merge.sh` — Runs `npm install`, rebuilds shared packages, and pushes DB schema

@@ -4,6 +4,9 @@ import jwt from "@fastify/jwt";
 import { authRoutes } from "../routes/auth";
 import { kitRoutes } from "../routes/kits";
 import { metaRoutes } from "../routes/meta";
+import { ratingRoutes } from "../routes/ratings";
+import { publisherRoutes } from "../routes/publishers";
+import { collectionRoutes } from "../routes/collections";
 import { authMiddleware } from "../middleware/auth";
 import { db, healthCheck, schema, eq, sql } from "@kithub/db";
 
@@ -17,9 +20,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(jwt, { secret: "test-secret-for-integration-tests" });
   await app.register(authMiddleware);
   app.decorate("db", db);
+  await app.register(import("@fastify/rate-limit").then((m) => m.default), { global: false });
   await app.register(authRoutes, { prefix: "/api/auth" });
   await app.register(metaRoutes, { prefix: "/api" });
   await app.register(kitRoutes, { prefix: "/api/kits" });
+  await app.register(ratingRoutes, { prefix: "/api/kits" });
+  await app.register(publisherRoutes, { prefix: "/api/publishers" });
+  await app.register(collectionRoutes, { prefix: "/api/collections" });
 
   app.get("/health", async () => {
     const dbOk = await healthCheck();
@@ -57,6 +64,8 @@ export async function cleanupTestData(email: string, kitSlug?: string) {
       await db.delete(schema.kitViewEvents).where(eq(schema.kitViewEvents.kitSlug, kitSlug));
       await db.delete(schema.learnings).where(eq(schema.learnings.kitSlug, kitSlug));
       await db.delete(schema.kitTags).where(eq(schema.kitTags.kitSlug, kitSlug));
+      await db.delete(schema.kitRatings).where(eq(schema.kitRatings.kitSlug, kitSlug));
+      await db.delete(schema.kitEmbeddings).where(eq(schema.kitEmbeddings.kitSlug, kitSlug));
       await db.delete(schema.kits).where(eq(schema.kits.slug, kitSlug));
     } catch {}
   }

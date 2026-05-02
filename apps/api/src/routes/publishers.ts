@@ -50,6 +50,8 @@ export const publisherRoutes: FastifyPluginAsync = async (fastify) => {
 
     return {
       agentName: publisher.agentName,
+      verified: publisher.verifiedAt !== null,
+      verifiedAt: publisher.verifiedAt,
       kitCount: result.total,
       totalInstalls,
       averageScore: avgScore,

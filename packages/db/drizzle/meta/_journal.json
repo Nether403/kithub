@@ -29,6 +29,13 @@
       "when": 1775774479145,
       "tag": "0003_add-kit-view-events",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777741055531,
+      "tag": "0004_discovery_trust_v1",
+      "breakpoints": true
     }
   ]
 }

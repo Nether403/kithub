@@ -23,6 +23,8 @@ const SearchQuerySchema = z.object({
   sort: z.enum(["installs", "score", "newest"]).optional().default("newest"),
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  mode: z.enum(["keyword", "semantic"]).optional().default("keyword"),
+  related_to: z.string().max(120).optional(),
 });
 import {
   db, schema, eq, desc, sql,
@@ -31,6 +33,9 @@ import {
   searchKitsPaginated, getTrendingKits, getAllReleases,
   getKitsByPublisherId, getEnrichedKitBySlug,
   getDailyInstalls, getDailyViews, getInstallsByTarget,
+  semanticSearchKits, getRelatedKits, batchFetchKitsBySlugs,
+  upsertKitEmbedding, isEmbeddingsEnabled, diffScans,
+  type ScanFinding,
 } from "@kithub/db";
 import { generateInstallPayload, isValidTarget, parseKitMd, scanKit, SUPPORTED_TARGETS } from "@kithub/schema";
 import {
@@ -49,7 +54,7 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
         statusCode: 400,
       });
     }
-    const { q, tag, sort, page, limit } = parsed.data;
+    const { q, tag, sort, page, limit, mode, related_to } = parsed.data;
     if (!db) {
       return reply.code(503).send({
         error: "Service Unavailable",
@@ -58,19 +63,64 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const sortBy = sort;
-    const pageNum = page;
-    const limitNum = limit;
+    // Related-to mode: ignore q/tag, return kits similar to the given slug
+    if (related_to) {
+      const target = await getKitBySlug(related_to);
+      if (!target) {
+        return reply.code(404).send({
+          error: "Not Found",
+          message: `Kit "${related_to}" not found.`,
+          statusCode: 404,
+        });
+      }
+      const { hits, mode: matchMode } = await getRelatedKits(db, related_to, limit);
+      const slugs = hits.map(h => h.slug);
+      const enriched = await batchFetchKitsBySlugs(slugs);
+      // preserve hit order
+      const ordered = slugs
+        .map(s => enriched.find(k => k.slug === s))
+        .filter((k): k is NonNullable<typeof k> => !!k);
+      return {
+        kits: ordered,
+        total: ordered.length,
+        page: 1,
+        limit,
+        totalPages: 1,
+        mode: matchMode,
+        relatedTo: related_to,
+      };
+    }
+
+    // Semantic search mode
+    if (mode === "semantic" && q) {
+      const { hits, available } = await semanticSearchKits(db, q, { limit });
+      if (available && hits.length > 0) {
+        const slugs = hits.map(h => h.slug);
+        const enriched = await batchFetchKitsBySlugs(slugs);
+        const ordered = slugs
+          .map(s => enriched.find(k => k.slug === s))
+          .filter((k): k is NonNullable<typeof k> => !!k);
+        return {
+          kits: ordered,
+          total: ordered.length,
+          page: 1,
+          limit,
+          totalPages: 1,
+          mode: "semantic",
+        };
+      }
+      // Fall back to keyword if embeddings disabled or no hits
+    }
 
     const result = await searchKitsPaginated({
       query: q,
       tag,
-      sort: sortBy,
-      page: pageNum,
-      limit: limitNum,
+      sort,
+      page,
+      limit,
     });
 
-    return result;
+    return { ...result, mode: "keyword" as const };
   });
 
   fastify.get("/trending", async (request, reply) => {
@@ -128,6 +178,7 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       title: enriched.title,
       summary: enriched.summary,
       publisherName: enriched.publisherName,
+      publisherVerified: !!enriched.publisherVerifiedAt,
       version: enriched.version,
       rawMarkdown: release?.rawMarkdown ?? "",
       parsedFrontmatter: release?.parsedFrontmatter,
@@ -135,10 +186,60 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       tags: enriched.tags,
       installs: enriched.installs,
       learningsCount: learnings,
+      averageStars: enriched.averageStars ?? null,
+      ratingCount: enriched.ratingCount ?? 0,
       scan: scan ? { score: scan.score, status: scan.status, findings: scan.findings } : null,
       createdAt: enriched.createdAt,
       updatedAt: enriched.updatedAt,
     };
+  });
+
+  // ── Scan history with diffs ─────────────────────────────────────
+  fastify.get("/:slug/scans", async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    if (!db) {
+      return reply.code(503).send({
+        error: "Service Unavailable",
+        message: "Database not connected.",
+        statusCode: 503,
+      });
+    }
+    const kit = await getKitBySlug(slug);
+    if (!kit) {
+      return reply.code(404).send({
+        error: "Not Found",
+        message: `Kit "${slug}" not found.`,
+        statusCode: 404,
+      });
+    }
+
+    const releases = await getAllReleases(slug);
+    if (releases.length === 0) return { slug, scans: [], diffs: [] };
+
+    const scans = releases.map(r => ({
+      version: r.version,
+      releaseId: r.id,
+      score: r.scan?.score ?? null,
+      findings: (r.scan?.findings as ScanFinding[] | null) ?? [],
+      createdAt: r.createdAt,
+    }));
+
+    // Diffs: head→base, head→base-2, etc. (newest releases first in releases array)
+    const diffs: ReturnType<typeof diffScans>[] = [];
+    for (let i = 0; i < scans.length - 1; i++) {
+      const head = scans[i]!;
+      const base = scans[i + 1]!;
+      diffs.push(diffScans({
+        baseVersion: base.version,
+        baseScore: base.score,
+        baseFindings: base.findings,
+        headVersion: head.version,
+        headScore: head.score,
+        headFindings: head.findings,
+      }));
+    }
+
+    return { slug, scans, diffs };
   });
 
   fastify.get("/:slug/install", async (request, reply) => {
@@ -306,6 +407,22 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
       );
     }
 
+    // Best-effort embedding generation (env-gated; never blocks publish)
+    if (isEmbeddingsEnabled()) {
+      upsertKitEmbedding(db, {
+        kitSlug: kitData.frontmatter.slug,
+        releaseId,
+        title: kitData.frontmatter.title,
+        summary: kitData.frontmatter.summary,
+        tags: kitData.frontmatter.tags,
+        body: kitData.body
+          ? `${kitData.body.goal}\n\n${kitData.body.whenToUse}\n\n${kitData.body.steps}`
+          : undefined,
+      }).catch(err => {
+        fastify.log.warn({ err, slug: kitData.frontmatter.slug }, "Embedding generation failed (non-fatal)");
+      });
+    }
+
     return {
       status: scanResult.passed ? "published" : "blocked",
       slug: kitData.frontmatter.slug,
@@ -317,6 +434,7 @@ export const kitRoutes: FastifyPluginAsync = async (fastify) => {
         findings: scanResult.findings,
         tips: scanResult.tips,
       },
+      embeddingsEnabled: isEmbeddingsEnabled(),
     };
   });
 

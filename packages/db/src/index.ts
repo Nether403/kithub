@@ -58,12 +58,15 @@ export interface EnrichedKit {
   installs: number;
   tags: string[];
   score: number | null;
+  averageStars?: number | null;
+  ratingCount?: number;
   updatedAt: Date;
 }
 
 export interface EnrichedKitWithPublisher extends EnrichedKit {
   publisherId: string;
   publisherName: string | null;
+  publisherVerifiedAt?: Date | null;
   createdAt: Date;
 }
 
@@ -161,7 +164,10 @@ export async function getEnrichedKitBySlug(slug: string): Promise<EnrichedKitWit
       .then(rows => rows[0] ?? null),
   ]);
 
-  const scan = latestRelease ? await getLatestScan(latestRelease.id) : null;
+  const [scan, ratingSummary] = await Promise.all([
+    latestRelease ? getLatestScan(latestRelease.id) : Promise.resolve(null),
+    (await import("./discovery.js")).getRatingsSummary(db, slug),
+  ]);
 
   return {
     slug: kit.slug,
@@ -169,10 +175,13 @@ export async function getEnrichedKitBySlug(slug: string): Promise<EnrichedKitWit
     summary: kit.summary,
     publisherId: kit.publisherId,
     publisherName: publisher?.agentName ?? null,
+    publisherVerifiedAt: publisher?.verifiedAt ?? null,
     version: latestRelease?.version ?? "0.0.0",
     installs: installCount,
     tags: tags.map(t => t.tag),
     score: scan?.score ?? null,
+    averageStars: ratingSummary.averageStars,
+    ratingCount: ratingSummary.ratingCount,
     updatedAt: kit.updatedAt,
     createdAt: kit.createdAt,
   };
@@ -227,12 +236,14 @@ async function batchFetchTags(slugs: string[]): Promise<Record<string, string[]>
     .from(schema.kitTags)
     .where(inArray(schema.kitTags.kitSlug, slugs));
 
-  const map: Record<string, string[]> = {};
+  const map: Record<string, Set<string>> = {};
   for (const row of rows) {
-    if (!map[row.kitSlug]) map[row.kitSlug] = [];
-    map[row.kitSlug]!.push(row.tag);
+    if (!map[row.kitSlug]) map[row.kitSlug] = new Set();
+    map[row.kitSlug]!.add(row.tag);
   }
-  return map;
+  const out: Record<string, string[]> = {};
+  for (const slug of Object.keys(map)) out[slug] = Array.from(map[slug]!);
+  return out;
 }
 
 async function batchFetchLatestScores(releaseIds: string[]): Promise<Record<string, number | null>> {
@@ -362,23 +373,30 @@ export async function searchKitsPaginated(options: {
   ]);
 
   const releaseIds = Object.values(releaseMap).map(r => r.id);
-  const [scoremap, publisherMap] = await Promise.all([
+  const publisherIds = [...new Set(rawKits.map(k => k.publisherId))];
+  const [scoremap, publisherMap, ratingMap, verifiedMap] = await Promise.all([
     batchFetchLatestScores(releaseIds),
-    batchFetchPublishers([...new Set(rawKits.map(k => k.publisherId))]),
+    batchFetchPublishers(publisherIds),
+    (await import("./discovery.js")).batchFetchRatingsSummary(db, slugs),
+    (await import("./discovery.js")).batchFetchPublisherVerified(db, publisherIds),
   ]);
 
   const enriched: EnrichedKitWithPublisher[] = rawKits.map(kit => {
     const release = releaseMap[kit.slug];
+    const rating = ratingMap[kit.slug] ?? { averageStars: null, ratingCount: 0 };
     return {
       slug: kit.slug,
       title: kit.title,
       summary: kit.summary,
       publisherId: kit.publisherId,
       publisherName: publisherMap[kit.publisherId] ?? null,
+      publisherVerifiedAt: verifiedMap[kit.publisherId] ?? null,
       version: release?.version ?? "0.0.0",
       installs: installMap[kit.slug] ?? 0,
       tags: tagMap[kit.slug] ?? [],
       score: release ? (scoremap[release.id] ?? null) : null,
+      averageStars: rating.averageStars,
+      ratingCount: rating.ratingCount,
       updatedAt: kit.updatedAt,
       createdAt: kit.createdAt,
     };
@@ -407,6 +425,7 @@ export async function searchKitsPaginated(options: {
 
 export interface TrendingKit extends EnrichedKit {
   publisherName: string | null;
+  publisherVerifiedAt?: Date | null;
 }
 
 export async function getTrendingKits(count = 3): Promise<TrendingKit[]> {
@@ -433,10 +452,13 @@ export async function getTrendingKits(count = 3): Promise<TrendingKit[]> {
 
   if (slugs.length === 0) return [];
 
-  const [releaseMap, tagMap, publisherMap] = await Promise.all([
+  const publisherIds = [...new Set(trendingRows.map(r => r.publisher_id))];
+  const [releaseMap, tagMap, publisherMap, ratingMap, verifiedMap] = await Promise.all([
     batchFetchLatestReleases(slugs),
     batchFetchTags(slugs),
-    batchFetchPublishers([...new Set(trendingRows.map(r => r.publisher_id))]),
+    batchFetchPublishers(publisherIds),
+    (await import("./discovery.js")).batchFetchRatingsSummary(db, slugs),
+    (await import("./discovery.js")).batchFetchPublisherVerified(db, publisherIds),
   ]);
 
   const releaseIds = Object.values(releaseMap).map(r => r.id);
@@ -444,15 +466,19 @@ export async function getTrendingKits(count = 3): Promise<TrendingKit[]> {
 
   return trendingRows.slice(0, count).map(row => {
     const release = releaseMap[row.slug];
+    const rating = ratingMap[row.slug] ?? { averageStars: null, ratingCount: 0 };
     return {
       slug: row.slug,
       title: row.title,
       summary: row.summary,
       publisherName: publisherMap[row.publisher_id] ?? null,
+      publisherVerifiedAt: verifiedMap[row.publisher_id] ?? null,
       version: release?.version ?? "0.0.0",
       installs: Number(row.install_count),
       tags: tagMap[row.slug] ?? [],
       score: release ? (scoremap[release.id] ?? null) : null,
+      averageStars: rating.averageStars,
+      ratingCount: rating.ratingCount,
       updatedAt: row.updated_at,
     };
   });
@@ -490,10 +516,14 @@ export async function getKitsByPublisherId(publisherId: string, options?: {
   ]);
 
   const releaseIds = Object.values(releaseMap).map(r => r.id);
-  const scoremap = await batchFetchLatestScores(releaseIds);
+  const [scoremap, ratingMap] = await Promise.all([
+    batchFetchLatestScores(releaseIds),
+    (await import("./discovery.js")).batchFetchRatingsSummary(db, slugs),
+  ]);
 
   const enriched: EnrichedKit[] = kits.map(kit => {
     const release = releaseMap[kit.slug];
+    const rating = ratingMap[kit.slug] ?? { averageStars: null, ratingCount: 0 };
     return {
       slug: kit.slug,
       title: kit.title,
@@ -502,6 +532,8 @@ export async function getKitsByPublisherId(publisherId: string, options?: {
       installs: installMap[kit.slug] ?? 0,
       tags: tagMap[kit.slug] ?? [],
       score: release ? (scoremap[release.id] ?? null) : null,
+      averageStars: rating.averageStars,
+      ratingCount: rating.ratingCount,
       updatedAt: kit.updatedAt,
     };
   });
@@ -798,3 +830,78 @@ export async function healthCheck(): Promise<boolean> {
 // batchFetchPublishers handles this use case more efficiently.
 
 export { schema, eq, desc, ilike, sql, and, inArray };
+
+export {
+  isEmbeddingsEnabled,
+  warnIfDisabled as warnEmbeddingsDisabled,
+  buildEmbeddingInput,
+  generateEmbedding,
+  cosineSimilarity,
+  EMBEDDING_MODEL_NAME,
+  EMBEDDING_DIMENSIONS,
+} from "./embeddings";
+
+export {
+  upsertKitEmbedding,
+  semanticSearchKits,
+  getRelatedKits,
+  getRatingsSummary,
+  batchFetchRatingsSummary,
+  listRatings,
+  upsertRating,
+  listCollections,
+  getCollection,
+  upsertCollection,
+  batchFetchPublisherVerified,
+  diffScans,
+} from "./discovery";
+
+export type { SemanticSearchHit, RatingSummary, ScanFinding, ScanDiff } from "./discovery";
+
+// Public batch helper — needed by route layer for collections enrichment.
+export async function batchFetchKitsBySlugs(slugs: string[]) {
+  if (!db) throw new Error("Database not connected");
+  if (slugs.length === 0) return [];
+
+  const rawKits = await db.select().from(schema.kits).where(inArray(schema.kits.slug, slugs));
+  const publishedKits = rawKits.filter((k) => !k.unpublishedAt);
+  const publishedSlugs = publishedKits.map((k) => k.slug);
+
+  if (publishedSlugs.length === 0) return [];
+
+  const [releaseMap, installMap, tagMap, publisherIds] = [
+    await batchFetchLatestReleases(publishedSlugs),
+    await batchFetchInstallCounts(publishedSlugs),
+    await batchFetchTags(publishedSlugs),
+    [...new Set(publishedKits.map((k) => k.publisherId))],
+  ];
+
+  const releaseIds = Object.values(releaseMap).map((r) => r.id);
+  const [scoremap, publisherMap, ratingMap, verifiedMap] = await Promise.all([
+    batchFetchLatestScores(releaseIds),
+    batchFetchPublishers(publisherIds),
+    (await import("./discovery.js")).batchFetchRatingsSummary(db, publishedSlugs),
+    (await import("./discovery.js")).batchFetchPublisherVerified(db, publisherIds),
+  ]);
+
+  return publishedKits.map((kit) => {
+    const release = releaseMap[kit.slug];
+    const rating = ratingMap[kit.slug] ?? { averageStars: null, ratingCount: 0 };
+    return {
+      slug: kit.slug,
+      title: kit.title,
+      summary: kit.summary,
+      publisherId: kit.publisherId,
+      publisherName: publisherMap[kit.publisherId] ?? null,
+      publisherVerifiedAt: verifiedMap[kit.publisherId] ?? null,
+      version: release?.version ?? "0.0.0",
+      installs: installMap[kit.slug] ?? 0,
+      tags: tagMap[kit.slug] ?? [],
+      score: release ? (scoremap[release.id] ?? null) : null,
+      averageStars: rating.averageStars,
+      ratingCount: rating.ratingCount,
+      updatedAt: kit.updatedAt,
+      createdAt: kit.createdAt,
+    };
+  });
+}
