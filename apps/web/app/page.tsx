@@ -1,9 +1,67 @@
-export default function Home() {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+interface RegistryStats {
+  totalKits: number;
+  totalInstalls: number;
+  totalPublishers: number;
+  totalCollections: number;
+}
+
+async function getStats(): Promise<RegistryStats> {
+  const fallback: RegistryStats = { totalKits: 0, totalInstalls: 0, totalPublishers: 0, totalCollections: 0 };
+  try {
+    const [kitsRes, collectionsRes] = await Promise.all([
+      fetch(`${API_URL}/api/kits?limit=1`, { cache: "no-store" }).catch(() => null),
+      fetch(`${API_URL}/api/collections`, { cache: "no-store" }).catch(() => null),
+    ]);
+    let totalKits = 0;
+    let totalInstalls = 0;
+    let totalPublishers = 0;
+    let totalCollections = 0;
+
+    if (kitsRes?.ok) {
+      const data = await kitsRes.json();
+      totalKits = data.total ?? 0;
+    }
+    if (collectionsRes?.ok) {
+      const data = await collectionsRes.json();
+      const collections = data.collections ?? [];
+      totalCollections = collections.length;
+      totalInstalls = collections.reduce((s: number, c: { totalInstalls?: number }) => s + (c.totalInstalls ?? 0), 0);
+      const curators = new Set<string>(collections.map((c: { curator?: string }) => c.curator ?? "").filter(Boolean));
+      totalPublishers = curators.size;
+    }
+    return { totalKits, totalInstalls, totalPublishers, totalCollections };
+  } catch {
+    return fallback;
+  }
+}
+
+function formatStat(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return n.toLocaleString();
+}
+
+export default async function Home() {
+  const stats = await getStats();
+
   return (
     <main>
       <section className="hero">
         <div className="container">
-          <h1>Workflows & Skills for Every AI Agent</h1>
+          <div className="status-pill" role="status" aria-label="Registry status">
+            <span className="status-pill-dot" aria-hidden="true" />
+            <span>Live Registry</span>
+            <span className="status-pill-divider">·</span>
+            <span className="status-pill-meta">
+              {formatStat(stats.totalKits)} kit{stats.totalKits === 1 ? "" : "s"} indexed
+            </span>
+          </div>
+
+          <h1>
+            Workflows &amp; Skills for<br />
+            Every <span className="accent-word">AI Agent</span>
+          </h1>
           <p className="hero-subtitle">
             The universal registry for reusable agent workflows (Kits) and expert instruction sets (Skills). Works with Cursor, Claude, Codex, and any compatible agent.
           </p>
@@ -11,6 +69,25 @@ export default function Home() {
           <div className="hero-ctas">
             <a href="/registry" className="btn">Browse Kits</a>
             <a href="/skills" className="btn btn-secondary btn-secondary-visible">Explore Skills</a>
+          </div>
+
+          <div className="hero-stats" role="list" aria-label="Registry statistics">
+            <div className="hero-stat" role="listitem">
+              <div className="hero-stat-value">{formatStat(stats.totalKits)}</div>
+              <span className="hero-stat-label">Kits</span>
+            </div>
+            <div className="hero-stat" role="listitem">
+              <div className="hero-stat-value">{formatStat(stats.totalCollections)}</div>
+              <span className="hero-stat-label">Collections</span>
+            </div>
+            <div className="hero-stat" role="listitem">
+              <div className="hero-stat-value">{formatStat(stats.totalPublishers)}</div>
+              <span className="hero-stat-label">Publishers</span>
+            </div>
+            <div className="hero-stat" role="listitem">
+              <div className="hero-stat-value">{formatStat(stats.totalInstalls)}</div>
+              <span className="hero-stat-label">Installs</span>
+            </div>
           </div>
 
           <div className="install-primary page-narrow">
@@ -39,6 +116,11 @@ export default function Home() {
 
       <section className="container">
         <div className="section-header">
+          <div className="eyebrow">
+            <span className="eyebrow-num">01</span>
+            <span className="eyebrow-bar" />
+            <span>Workflow</span>
+          </div>
           <h2>How It Works</h2>
           <p>Three steps from discovery to autonomous execution.</p>
         </div>
@@ -63,6 +145,16 @@ export default function Home() {
       </section>
 
       <section className="container">
+        <div className="section-header">
+          <div className="eyebrow">
+            <span className="eyebrow-num">02</span>
+            <span className="eyebrow-bar" />
+            <span>Platform</span>
+          </div>
+          <h2>Built for Production Agents</h2>
+          <p>Six guarantees that turn brittle prompts into reliable infrastructure.</p>
+        </div>
+
         <div className="feature-grid">
           <div className="glass-panel feature-card feature-card-green">
             <div className="feature-icon-styled feature-icon-green" aria-hidden="true">

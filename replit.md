@@ -49,9 +49,23 @@ npx turbo run build --filter=@kithub/schema --filter=@kithub/sdk --filter=@kithu
 ## Design System (apps/web)
 
 ### Theme
-- Dark theme: `--bg: #030304`, `--accent: #00e88f` (green)
+- Dark theme: `--bg: #030304`, `--accent: #00e88f` (green primary)
+- Multi-accent palette: `--accent-2: #7c5cff` (violet), `--accent-3: #22d3ee` (cyan) for visual variety
+- Gradient tokens: `--gradient-accent`, `--gradient-text`, `--gradient-text-accent`, `--gradient-surface`
 - Fonts: Inter (sans), JetBrains Mono (mono)
-- All design tokens in `apps/web/app/globals.css`
+- Ambient color washes via `body::after` (green/violet/cyan radial blooms) for depth
+- All design tokens in `apps/web/app/globals.css` (~2200 lines)
+
+### Personality patterns (post-overhaul)
+- Hero: `.status-pill` (live dot + indexed count), gradient `.accent-word` in title, `.hero-stats` strip (Kits/Collections/Publishers/Installs)
+- Section eyebrows: `.eyebrow` + `.eyebrow-num` + `.eyebrow-bar` for orientation
+- Pill nav: `.nav-link` rounds on hover, active state is filled green pill
+- Kit cards: mono `.kit-id-eyebrow` (publisher/slug), gradient left-edge on hover
+- Steps: numbered circles colored per-step (green/cyan/violet) with halo glow + gradient connector
+- Section headers use gradient text via `--gradient-text`
+- Feature cards lift on hover; icons get blur halo via `.feature-icon-styled`
+- Collections: `.collection-card-featured` has gradient top accent + tinted bg + `.featured-pill`
+- Terminal blocks: gradient bg + subtle green ring/glow
 
 ### CSS Architecture
 Global CSS classes in `globals.css` organized by section:

@@ -37,10 +37,15 @@ export default async function CollectionsPage() {
   return (
     <main className="container" style={{ paddingTop: "4rem", paddingBottom: "4rem", minHeight: "70vh" }}>
       <div style={{ marginBottom: "3rem" }}>
+        <div className="eyebrow">
+          <span className="eyebrow-num">/</span>
+          <span className="eyebrow-bar" />
+          <span>Curated Stacks</span>
+        </div>
         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)", marginBottom: "0.5rem" }}>
-          Curated Collections
+          Curated <span className="gradient-text">Collections</span>
         </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem" }}>
+        <p style={{ color: "var(--text-secondary)", fontSize: "1.05rem", maxWidth: "640px" }}>
           Trusted bundles of kits handpicked for a workflow — install the whole stack into your agent in one shot.
         </p>
       </div>
@@ -50,45 +55,31 @@ export default async function CollectionsPage() {
           <p style={{ color: "var(--text-secondary)" }}>No collections published yet.</p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1.25rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 1fr))", gap: "1.25rem" }}>
           {collections.map((c) => (
             <Link
               key={c.slug}
               href={`/collections/${c.slug}`}
-              className="glass-panel"
+              className={`glass-panel collection-card${c.featured ? " collection-card-featured" : ""}`}
               style={{ textDecoration: "none", color: "inherit", display: "block", cursor: "pointer" }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
-                <span style={{ fontSize: "1.75rem" }}>{c.emoji}</span>
-                <div>
-                  <h3 style={{ fontSize: "1.1rem", marginBottom: "0.15rem" }}>{c.title}</h3>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", marginBottom: "0.85rem" }}>
+                <span className="collection-emoji" aria-hidden="true">{c.emoji}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ fontSize: "1.1rem", marginBottom: "0.15rem", letterSpacing: "-0.02em" }}>{c.title}</h3>
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                     by {c.curator}
                   </span>
                 </div>
-                {c.featured && (
-                  <span
-                    style={{
-                      marginLeft: "auto",
-                      background: "rgba(0,232,143,0.12)",
-                      color: "var(--accent)",
-                      padding: "0.15rem 0.5rem",
-                      borderRadius: "999px",
-                      fontSize: "0.7rem",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    Featured
-                  </span>
-                )}
+                {c.featured && <span className="featured-pill">Featured</span>}
               </div>
-              <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginBottom: "1rem", lineHeight: 1.5 }}>
+              <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginBottom: "1.25rem", lineHeight: 1.55 }}>
                 {c.description}
               </p>
-              <div style={{ display: "flex", gap: "1rem", fontSize: "0.8rem", color: "var(--text-tertiary)", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "1rem", fontSize: "0.78rem", color: "var(--text-tertiary)", flexWrap: "wrap", fontFamily: "var(--font-mono)", paddingTop: "0.85rem", borderTop: "1px solid var(--border)" }}>
                 <span>{c.kitCount} kit{c.kitCount === 1 ? "" : "s"}</span>
                 <span>{Number(c.totalInstalls).toLocaleString()} installs</span>
-                {c.averageStars !== null && <span>★ {c.averageStars.toFixed(1)} avg</span>}
+                {c.averageStars !== null && <span style={{ color: "#ffb340" }}>★ {c.averageStars.toFixed(1)} avg</span>}
               </div>
             </Link>
           ))}

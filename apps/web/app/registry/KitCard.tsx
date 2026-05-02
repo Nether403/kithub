@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Stars } from "../components/Stars";
 import { VerifiedBadge } from "../components/VerifiedBadge";
@@ -28,52 +29,65 @@ export function KitCard({ kit }: { kit: KitData }) {
   const router = useRouter();
   const verified = !!kit.publisherVerifiedAt;
 
-  const handleCardClick = () => {
-    router.push(`/registry/${kit.slug}`);
-  };
-
-  const handlePublisherClick = (e: React.MouseEvent) => {
+  const goToPublisher = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    router.push(`/publishers/${kit.publisherName}`);
+    if (kit.publisherName) router.push(`/publishers/${kit.publisherName}`);
   };
 
   return (
-    <div className="kit-card" onClick={handleCardClick} style={{ cursor: 'pointer' }}>
-      <div>
+    <Link
+      href={`/registry/${kit.slug}`}
+      className="kit-card"
+      aria-label={`${kit.title} by ${kit.publisherName ?? "unknown"} — view kit details`}
+      style={{ textDecoration: "none", color: "inherit" }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <span className="kit-id-eyebrow">
+          {kit.publisherName ? (
+            <>
+              {kit.publisherName}
+              <span className="kit-id-slash">/</span>
+              {kit.slug}
+            </>
+          ) : (
+            kit.slug
+          )}
+        </span>
         <h3>{kit.title}</h3>
         {kit.publisherName && (
           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
             by{" "}
-            <span
-              onClick={handlePublisherClick}
-              style={{ color: 'var(--accent)', cursor: 'pointer' }}
-              role="link"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter') handlePublisherClick(e as unknown as React.MouseEvent); }}
+            <button
+              type="button"
+              onClick={goToPublisher}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') goToPublisher(e); }}
+              className="link-button"
+              aria-label={`View publisher @${kit.publisherName}`}
             >
               @{kit.publisherName}
-            </span>
+            </button>
             <VerifiedBadge verified={verified} />
           </span>
         )}
-        <p>{kit.summary}</p>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <p style={{ marginTop: '0.5rem' }}>{kit.summary}</p>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.85rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <Stars value={kit.averageStars ?? null} count={kit.ratingCount} size="sm" />
           {[...new Set(kit.tags)].map((tag: string) => (
             <span key={tag} className="tag-chip">#{tag}</span>
           ))}
         </div>
       </div>
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+      <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: '0.85rem', letterSpacing: '0.04em' }}>
           v{kit.version}
         </div>
         <ScoreBadge score={kit.score} />
-        <div className="stat-counter" style={{ marginTop: '0.5rem' }}>
+        <div className="stat-counter">
           {Number(kit.installs).toLocaleString()} installs
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -81,39 +95,48 @@ export function TrendingCard({ kit }: { kit: KitData }) {
   const router = useRouter();
   const verified = !!kit.publisherVerifiedAt;
 
-  const handleCardClick = () => {
-    router.push(`/registry/${kit.slug}`);
-  };
-
-  const handlePublisherClick = (e: React.MouseEvent) => {
+  const goToPublisher = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    router.push(`/publishers/${kit.publisherName}`);
+    if (kit.publisherName) router.push(`/publishers/${kit.publisherName}`);
   };
 
   return (
-    <div
-      className="glass-panel"
-      onClick={handleCardClick}
-      style={{ cursor: 'pointer', display: 'block' }}
+    <Link
+      href={`/registry/${kit.slug}`}
+      className="glass-panel trending-card"
+      aria-label={`${kit.title} by ${kit.publisherName ?? "unknown"} — view kit details`}
+      style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
     >
+      <span className="kit-id-eyebrow">
+        {kit.publisherName ? (
+          <>
+            {kit.publisherName}
+            <span className="kit-id-slash">/</span>
+            {kit.slug}
+          </>
+        ) : (
+          kit.slug
+        )}
+      </span>
       <div style={{ marginBottom: '0.75rem' }}>
         <h3 style={{ fontSize: '1.05rem', marginBottom: '0.25rem' }}>{kit.title}</h3>
         {kit.publisherName && (
           <span style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span
-              onClick={handlePublisherClick}
-              style={{ color: 'var(--accent)', cursor: 'pointer' }}
-              role="link"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter') handlePublisherClick(e as unknown as React.MouseEvent); }}
+            <button
+              type="button"
+              onClick={goToPublisher}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') goToPublisher(e); }}
+              className="link-button"
+              aria-label={`View publisher @${kit.publisherName}`}
             >
               @{kit.publisherName}
-            </span>
+            </button>
             <VerifiedBadge verified={verified} />
           </span>
         )}
       </div>
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: '1.5' }}>
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.85rem', lineHeight: '1.55' }}>
         {kit.summary?.slice(0, 100)}{kit.summary?.length > 100 ? '...' : ''}
       </p>
       <div style={{ marginBottom: '0.5rem' }}>
@@ -123,6 +146,6 @@ export function TrendingCard({ kit }: { kit: KitData }) {
         <span className="stat-counter">{Number(kit.installs).toLocaleString()} installs</span>
         <ScoreBadge score={kit.score} />
       </div>
-    </div>
+    </Link>
   );
 }
