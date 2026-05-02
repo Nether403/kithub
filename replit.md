@@ -100,6 +100,12 @@ Multi-column layout: brand description, Product links, Resources links, Communit
 - Upgraded from Node.js 18 to Node.js 20 (required by Next.js 16)
 - Fixed TypeScript strict mode errors in `packages/schema/src/index.ts`
 - Fixed `@fastify/jwt` type conflicts in `apps/api/src/middleware/auth.ts`
+- Fixed DB SSL: Replit's internal Postgres (helium) doesn't use TLS — `isReplitHelium` check in `packages/db/src/index.ts` and seed files
+- Fixed SQL `ANY()` array syntax for postgres.js compatibility in `batchFetchLatestReleases` and `batchFetchLatestScores`
+- Added `allowedDevOrigins` to `apps/web/next.config.js` for Replit proxy HMR support
+- Fixed `scripts/post-merge.sh`: updated deprecated `drizzle-kit push:pg` → `drizzle-kit push`
+- Set env vars: `WEB_URL`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_BASE_URL`, `NODE_ENV`, `PORT`
+- Database schema pushed and seeded with sample kits + skills
 
 ## Database Migrations (Drizzle)
 Migration files are managed via Drizzle Kit and stored in `packages/db/drizzle/`.

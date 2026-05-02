@@ -11,7 +11,7 @@ npx turbo run build --filter=@kithub/schema --filter=@kithub/db --filter=@kithub
 
 echo "Pushing DB schema..."
 cd packages/db
-npx drizzle-kit push:pg 2>&1 | tail -10
+npx drizzle-kit push 2>&1 | tail -10
 cd ../..
 
 echo "=== Post-merge setup complete ==="

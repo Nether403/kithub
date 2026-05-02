@@ -189,7 +189,7 @@ async function batchFetchLatestReleases(slugs: string[]): Promise<Record<string,
   const rows = await db.execute(sql`
     SELECT DISTINCT ON (kit_slug) kit_slug, id, version
     FROM ${schema.kitReleases}
-    WHERE kit_slug = ANY(${slugs})
+    WHERE kit_slug = ANY(ARRAY[${sql.join(slugs.map(s => sql`${s}`), sql`, `)}]::text[])
     ORDER BY kit_slug, created_at DESC
   `);
 
@@ -241,7 +241,7 @@ async function batchFetchLatestScores(releaseIds: string[]): Promise<Record<stri
   const rows = await db.execute(sql`
     SELECT DISTINCT ON (release_id) release_id, score
     FROM ${schema.kitReleaseScans}
-    WHERE release_id = ANY(${releaseIds})
+    WHERE release_id = ANY(ARRAY[${sql.join(releaseIds.map(id => sql`${id}`), sql`, `)}]::text[])
     ORDER BY release_id, created_at DESC
   `);
 
@@ -537,7 +537,7 @@ export async function getAllReleases(kitSlug: string) {
   const scanRows = await db.execute(sql`
     SELECT DISTINCT ON (release_id) release_id, score, status, findings
     FROM ${schema.kitReleaseScans}
-    WHERE release_id = ANY(${releaseIds})
+    WHERE release_id = ANY(ARRAY[${sql.join(releaseIds.map(id => sql`${id}`), sql`, `)}]::text[])
     ORDER BY release_id, created_at DESC
   `);
 

@@ -16,7 +16,8 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const client = postgres(connectionString);
+const isReplitHelium = connectionString.includes("helium");
+const client = postgres(connectionString, { ssl: isReplitHelium ? false : "require" });
 const db = drizzle(client, { schema });
 
 // ── Anonymization map ─────────────────────────────────────────────────────────
