@@ -26,21 +26,24 @@ coverage
 out/
 build
 dist
-Supabase-vercel-mcp.md
 
 # Debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Replit
+# Replit (legacy — project has migrated off Replit)
 .replit
 replit.md
 attached_assets/
 
+# Journeycrawl — scraped kit markdown from JourneyKits.ai.
+# Kept locally for seeding (see seed-journeykits.ts) but not committed.
+Journeycrawl/
+
 # Misc
 .DS_Store
 *.pem
+
+# Scratch/temp files
 Supabase-vercel-mcp.md
-Journeycrawl/*
-Journeycrawl/
