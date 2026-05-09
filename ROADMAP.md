@@ -193,6 +193,7 @@ Non-blocking but important for long-term quality.
 
 | Feature | Priority | Notes |
 |---|---|---|
+| Neon Auth migration | Medium | Replace Supabase Auth with Neon Auth (Better Auth) — eliminates a service dependency, reduces to Neon + Vercel only. ~600 lines across 10 files. |
 | Organizations / RBAC | Medium | Multi-team access control |
 | LLM-powered scanner review | Low | Automated kit quality assessment via LLM |
 | Hosted mode (live resolve) | Medium | Serve kit content at runtime instead of install-to-disk |

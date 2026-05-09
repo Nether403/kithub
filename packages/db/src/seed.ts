@@ -342,8 +342,9 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
   }
   console.log(`✅ ${collections.length} curated collections seeded\n`);
 
-  // ── Embeddings backfill (only if OPENAI_API_KEY) ─────────────────
-  if (process.env.OPENAI_API_KEY) {
+  // ── Embeddings backfill (if any embedding provider is configured) ──
+  const { isEmbeddingsEnabled } = await import("./embeddings.js");
+  if (isEmbeddingsEnabled()) {
     try {
       const { upsertKitEmbedding } = await import("./discovery.js");
       const { db: liveDb } = await import("./index.js");
@@ -374,7 +375,7 @@ Every Monday at 7 AM EST, 1 hour before US market open. Also useful ad-hoc befor
       console.warn("⚠️  Embedding backfill skipped:", (err as Error).message);
     }
   } else {
-    console.log("ℹ️  OPENAI_API_KEY not set — skipping embedding backfill (semantic search will fall back to keyword).\n");
+    console.log("ℹ️  No embedding provider configured — skipping embedding backfill (semantic search will fall back to keyword).\n");
   }
 
   console.log("🎉 Seed complete!");
