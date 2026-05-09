@@ -171,7 +171,7 @@ export const kitEmbeddings = pgTable("kit_embeddings", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   kitSlug: varchar("kit_slug").notNull().references(() => kits.slug).unique(),
   releaseId: varchar("release_id").references(() => kitReleases.id),
-  model: varchar("model").notNull().default("text-embedding-3-small"),
+  model: varchar("model").notNull().default("text-embedding-004"),
   inputHash: varchar("input_hash").notNull(),
   vector: jsonb("vector").$type<number[]>().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
