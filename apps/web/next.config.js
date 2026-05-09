@@ -3,6 +3,9 @@ const nextConfig = {
   // Standalone output for Vercel edge/serverless deployment
   output: "standalone",
 
+  // Transpile workspace packages
+  transpilePackages: ["@kithub/schema", "@kithub/db", "@kithub/sdk", "@repo/ui"],
+
   // Allow Replit's proxied dev domain for HMR and dev resources
   allowedDevOrigins: process.env.REPLIT_DEV_DOMAIN ? [process.env.REPLIT_DEV_DOMAIN] : [],
 
