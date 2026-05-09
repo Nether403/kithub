@@ -10,6 +10,7 @@ import { publisherRoutes } from "./routes/publishers";
 import { skillRoutes } from "./routes/skills";
 import { ratingRoutes } from "./routes/ratings";
 import { collectionRoutes } from "./routes/collections";
+import { adminRoutes } from "./routes/admin";
 import { isEmbeddingsEnabled } from "@kithub/db";
 import { authMiddleware } from "./middleware/auth";
 import { getSupabaseAuthConfigError } from "./lib/supabase-auth";
@@ -71,6 +72,7 @@ async function start() {
   await fastify.register(publisherRoutes, { prefix: "/api/publishers" });
   await fastify.register(skillRoutes, { prefix: "/api/skills" });
   await fastify.register(collectionRoutes, { prefix: "/api/collections" });
+  await fastify.register(adminRoutes, { prefix: "/api/admin" });
 
   if (!isEmbeddingsEnabled()) {
     fastify.log.warn(

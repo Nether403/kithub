@@ -9,6 +9,7 @@ export function GET() {
     description: "Agent-first registry for discovering, installing, and publishing versioned AI workflow kits and skills.",
     website: WEBSITE_URL,
     api: API_URL,
+    apiManifest: `${API_URL}/api/agent-manifest.json`,
     installTargets: INSTALL_TARGET_DETAILS,
     mcpServerPackage: "@kithub/mcp-server",
   });

@@ -85,6 +85,8 @@ export const authMiddleware: FastifyPluginAsync = fp(async (fastify) => {
       if (request.method === "GET" && request.url.startsWith("/api/skills")) return true;
       if (request.method === "GET" && request.url.startsWith("/api/collections")) return true;
       if (request.method === "GET" && /^\/api\/install-targets(\?.*)?$/.test(request.url)) return true;
+      if (request.method === "GET" && /^\/api\/agent-manifest\.json(\?.*)?$/.test(request.url)) return true;
+      if (request.method === "POST" && /^\/api\/admin\/publishers\/[^/]+\/verify(\?.*)?$/.test(request.url)) return true;
       // Anonymous view tracking — POST /api/kits/:slug/view records a view event without requiring auth.
       if (request.method === "POST" && /^\/api\/kits\/[^/]+\/view(\?.*)?$/.test(request.url)) return true;
       return false;

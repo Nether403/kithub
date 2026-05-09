@@ -17,7 +17,8 @@
     "generate": "drizzle-kit generate",
     "seed": "tsx src/seed.ts",
     "seed:skills": "tsx src/seed-skills.ts",
-    "seed:journeykits": "tsx src/seed-journeykits.ts"
+    "seed:journeykits": "tsx src/seed-journeykits.ts",
+    "backfill:embeddings": "tsx src/backfill-embeddings.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
